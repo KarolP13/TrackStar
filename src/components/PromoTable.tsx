@@ -18,6 +18,13 @@ type SortField = "promoDate" | "promoting" | "paymentAmount" | "paymentStatus";
 type SortDir = "asc" | "desc";
 type RecurringFilter = "all" | "recurring" | "onetime";
 
+function fmtNum(n: number): string {
+    if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(n % 1_000_000_000 === 0 ? 0 : 1)}B`;
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1)}M`;
+    if (n >= 1_000) return `${(n / 1_000).toFixed(n % 1_000 === 0 ? 0 : 1)}K`;
+    return String(n);
+}
+
 function formatDate(ts: Timestamp): string {
     if (!ts || !ts.toDate) return "—";
     return ts.toDate().toLocaleDateString("en-US", {
@@ -406,7 +413,7 @@ export default function PromoTable({ promos, onEdit, onDelete, onDuplicate, onCa
                                         )}
                                         {(promo.impressions || promo.likes || promo.comments || promo.bookmarks || promo.retweets) && (
                                             <div className="flex items-center justify-center gap-2 mt-1 text-[10px] text-text-muted">
-                                                {promo.impressions != null && <span title="Impressions">{(promo.impressions >= 1000 ? `${(promo.impressions / 1000).toFixed(1)}K` : promo.impressions)} imp</span>}
+                                                {promo.impressions != null && <span title="Impressions">{fmtNum(promo.impressions)} imp</span>}
                                                 {promo.likes != null && <span title="Likes">❤️ {promo.likes}</span>}
                                                 {promo.retweets != null && <span title="Reposts">🔁 {promo.retweets}</span>}
                                             </div>
@@ -494,7 +501,7 @@ export default function PromoTable({ promos, onEdit, onDelete, onDuplicate, onCa
                             )}
                             {(promo.impressions || promo.likes || promo.comments || promo.bookmarks || promo.retweets) && (
                                 <div className="flex items-center gap-3 mt-2 text-[11px] text-text-muted">
-                                    {promo.impressions != null && <span>{(promo.impressions >= 1000 ? `${(promo.impressions / 1000).toFixed(1)}K` : promo.impressions)} imp</span>}
+                                    {promo.impressions != null && <span>{fmtNum(promo.impressions)} imp</span>}
                                     {promo.likes != null && <span>❤️ {promo.likes}</span>}
                                     {promo.comments != null && <span>💬 {promo.comments}</span>}
                                     {promo.bookmarks != null && <span>🔖 {promo.bookmarks}</span>}
