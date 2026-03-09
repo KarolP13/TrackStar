@@ -256,20 +256,38 @@ export default function PromoModal({
 
     // Calculate available bundles for standard attaching
     // Find all promos that are part of a bundle, group them by bundleGroupId
-    const availableBundles = Array.from(new Set(
-        allPromos.filter(p => p.isBundle && p.bundleGroupId && p.promoting && p.promoterName)
-            .map(p => JSON.stringify({
-                groupId: p.bundleGroupId,
-                promoting: p.promoting,
-                promoterName: p.promoterName,
-                count: p.bundleCount
-            }))
-    )).map(s => JSON.parse(s) as { groupId: string, promoting: string, promoterName: string, count: number })
-        .filter(bundle => {
-            if (editingPromo?.bundleGroupId === bundle.groupId) return true;
-            const currentCount = allPromos.filter(p => p.bundleGroupId === bundle.groupId && p.id !== editingPromo?.id).length;
-            return currentCount < bundle.count;
-        });
+    const availableBundles = Array.from(
+        allPromos
+            .filter(p => p.isBundle && p.bundleGroupId && p.promoting && p.promoterName)
+            .reduce((map, p) => {
+                const groupId = p.bundleGroupId!;
+                if (!map.has(groupId)) {
+                    map.set(groupId, {
+                        groupId,
+                        promoting: p.promoting,
+                        promoterName: p.promoterName,
+                        count: p.bundleCount || 100,
+                        currentCount: 0
+                    });
+                }
+                const bundle = map.get(groupId)!;
+                // Exclude payment posts (index 0) and the currently editing promo from current capacity
+                if (p.bundleIndex !== 0 && p.id !== editingPromo?.id) {
+                    bundle.currentCount += 1;
+                }
+                // Always take the largest known count as the true limit for the bundle
+                if (p.bundleCount && p.bundleCount > bundle.count) {
+                    bundle.count = p.bundleCount;
+                } else if (bundle.count === 100 && p.bundleCount) {
+                    bundle.count = p.bundleCount;
+                }
+                return map;
+            }, new Map<string, { groupId: string, promoting: string, promoterName: string, count: number, currentCount: number }>())
+            .values()
+    ).filter(bundle => {
+        if (editingPromo?.bundleGroupId === bundle.groupId) return true;
+        return bundle.currentCount < bundle.count;
+    });
 
     if (!isOpen) return null;
 
@@ -577,7 +595,7 @@ export default function PromoModal({
                                             {availableBundles.length > 0 && <optgroup label="Existing Bundles" className="bg-surface text-text-muted text-xs">
                                                 {availableBundles.map(b => (
                                                     <option key={b.groupId} value={b.groupId} className="text-foreground">
-                                                        {b.promoting} by {b.promoterName} ({b.count}x)
+                                                        {b.promoting} by {b.promoterName} ({b.currentCount}/{b.count})
                                                     </option>
                                                 ))}
                                             </optgroup>}
