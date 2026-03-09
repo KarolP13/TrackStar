@@ -16,6 +16,7 @@ import {
 
 type DateRange = "7d" | "30d" | "90d" | "all";
 type TimeView = "weekly" | "monthly";
+type LeaderboardSort = "revenue" | "count" | "avg" | "pct";
 
 const CHART_COLORS = [
     "#3b82f6", "#60a5fa", "#93c5fd", "#2563eb",
@@ -79,6 +80,8 @@ export default function AnalyticsPage() {
     const [loading, setLoading] = useState(true);
     const [dateRange, setDateRange] = useState<DateRange>("30d");
     const [timeView, setTimeView] = useState<TimeView>("weekly");
+    const [leaderboardSort, setLeaderboardSort] = useState<LeaderboardSort>("revenue");
+    const [leaderboardDir, setLeaderboardDir] = useState<"asc" | "desc">("desc");
 
     useEffect(() => {
         if (!user) return;
@@ -104,16 +107,21 @@ export default function AnalyticsPage() {
 
         const accountCounts: Record<string, number> = {};
         const artistCounts: Record<string, number> = {};
+        const promoterRevenue: Record<string, number> = {};
         filteredPromos.forEach((p) => {
             accountCounts[p.accountHandle] = (accountCounts[p.accountHandle] || 0) + 1;
             const artist = p.promoting || (p as unknown as Record<string, string>).artistName || "Unknown";
             artistCounts[artist] = (artistCounts[artist] || 0) + 1;
+            promoterRevenue[p.promoterName] = (promoterRevenue[p.promoterName] || 0) + p.paymentAmount;
         });
 
         const mostActiveAccount = Object.entries(accountCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "—";
         const mostPromotedArtist = Object.entries(artistCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "—";
+        const topPromoterEntry = Object.entries(promoterRevenue).sort((a, b) => b[1] - a[1])[0];
+        const topPromoterName = topPromoterEntry?.[0] || "—";
+        const topPromoterAmount = topPromoterEntry?.[1] || 0;
 
-        return { totalRevenue, avgValue, mostActiveAccount, mostPromotedArtist };
+        return { totalRevenue, avgValue, mostActiveAccount, mostPromotedArtist, topPromoterName, topPromoterAmount };
     }, [filteredPromos]);
 
     // ── Chart 1: Revenue Over Time ──────────────
@@ -179,6 +187,72 @@ export default function AnalyticsPage() {
             .reverse();
     }, [filteredPromos, timeView]);
 
+    // ── NEW: Revenue by Promoter ─────────────────
+    const revenueByPromoter = useMemo(() => {
+        const buckets: Record<string, number> = {};
+        filteredPromos.forEach((p) => {
+            buckets[p.promoterName] = (buckets[p.promoterName] || 0) + p.paymentAmount;
+        });
+        return Object.entries(buckets)
+            .map(([name, revenue]) => ({ name, revenue }))
+            .sort((a, b) => b.revenue - a.revenue)
+            .slice(0, 10);
+    }, [filteredPromos]);
+
+    // ── NEW: Promoter Leaderboard ────────────────
+    const promoterLeaderboard = useMemo(() => {
+        const totalRevenue = filteredPromos.reduce((sum, p) => sum + p.paymentAmount, 0);
+        const dataMap: Record<string, { count: number; revenue: number; methods: Record<string, number> }> = {};
+
+        filteredPromos.forEach((p) => {
+            if (!dataMap[p.promoterName]) {
+                dataMap[p.promoterName] = { count: 0, revenue: 0, methods: {} };
+            }
+            const d = dataMap[p.promoterName];
+            d.count += p.isBundle && p.bundleCount ? p.bundleCount : 1;
+            d.revenue += p.paymentAmount;
+            d.methods[p.paymentMethod] = (d.methods[p.paymentMethod] || 0) + 1;
+        });
+
+        const rows = Object.entries(dataMap).map(([name, d]) => {
+            const topMethod = Object.entries(d.methods).sort((a, b) => b[1] - a[1])[0]?.[0] || "—";
+            return {
+                name,
+                count: d.count,
+                revenue: d.revenue,
+                avg: d.count > 0 ? d.revenue / d.count : 0,
+                topMethod,
+                pct: totalRevenue > 0 ? (d.revenue / totalRevenue) * 100 : 0,
+            };
+        });
+
+        rows.sort((a, b) => {
+            const mul = leaderboardDir === "desc" ? -1 : 1;
+            switch (leaderboardSort) {
+                case "count": return mul * (a.count - b.count);
+                case "avg": return mul * (a.avg - b.avg);
+                case "pct": return mul * (a.pct - b.pct);
+                default: return mul * (a.revenue - b.revenue);
+            }
+        });
+
+        return rows;
+    }, [filteredPromos, leaderboardSort, leaderboardDir]);
+
+    const handleLeaderboardSort = (field: LeaderboardSort) => {
+        if (leaderboardSort === field) {
+            setLeaderboardDir(leaderboardDir === "desc" ? "asc" : "desc");
+        } else {
+            setLeaderboardSort(field);
+            setLeaderboardDir("desc");
+        }
+    };
+
+    const LeaderSortIcon = ({ field }: { field: LeaderboardSort }) => {
+        if (leaderboardSort !== field) return <span className="text-white/20 ml-1">↕</span>;
+        return <span className="text-accent ml-1">{leaderboardDir === "asc" ? "↑" : "↓"}</span>;
+    };
+
     const dateRangeOptions: { value: DateRange; label: string }[] = [
         { value: "7d", label: "7 Days" },
         { value: "30d", label: "30 Days" },
@@ -222,8 +296,8 @@ export default function AnalyticsPage() {
                         </div>
                     ) : (
                         <>
-                            {/* Summary Stats */}
-                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                            {/* Summary Stats — 5 cards */}
+                            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
                                 <div className="bg-surface border border-border-light rounded-xl p-3.5 sm:p-5">
                                     <span className="text-[10px] sm:text-xs text-text-muted uppercase tracking-wider font-medium">Period Revenue</span>
                                     <p className="text-lg sm:text-2xl font-bold text-accent mt-1">${summaryStats.totalRevenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}</p>
@@ -239,6 +313,13 @@ export default function AnalyticsPage() {
                                 <div className="bg-surface border border-border-light rounded-xl p-3.5 sm:p-5">
                                     <span className="text-[10px] sm:text-xs text-text-muted uppercase tracking-wider font-medium">Top Artist</span>
                                     <p className="text-base sm:text-lg font-bold text-amber-500 mt-1 truncate">{summaryStats.mostPromotedArtist}</p>
+                                </div>
+                                <div className="bg-surface border border-border-light rounded-xl p-3.5 sm:p-5 col-span-2 lg:col-span-1">
+                                    <span className="text-[10px] sm:text-xs text-text-muted uppercase tracking-wider font-medium">Top Promoter</span>
+                                    <p className="text-base sm:text-lg font-bold text-pink-500 mt-1 truncate">{summaryStats.topPromoterName}</p>
+                                    {summaryStats.topPromoterAmount > 0 && (
+                                        <p className="text-xs text-text-muted mt-0.5">${summaryStats.topPromoterAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</p>
+                                    )}
                                 </div>
                             </div>
 
@@ -328,6 +409,74 @@ export default function AnalyticsPage() {
                                         </AreaChart>
                                     </ResponsiveContainer>
                                 </div>
+                            </div>
+
+                            {/* ── Revenue by Promoter Chart ── */}
+                            <div className="bg-surface border border-border-light rounded-xl p-4 sm:p-6">
+                                <h3 className="text-sm font-semibold text-foreground mb-4">Revenue by Promoter</h3>
+                                {revenueByPromoter.length === 0 ? (
+                                    <p className="text-sm text-text-muted py-8 text-center">No promoter data available.</p>
+                                ) : (
+                                    <ResponsiveContainer width="100%" height={Math.max(200, revenueByPromoter.length * 40)}>
+                                        <BarChart data={revenueByPromoter} layout="vertical">
+                                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
+                                            <XAxis type="number" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v}`} />
+                                            <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "var(--text-secondary)" }} axisLine={false} tickLine={false} width={120} />
+                                            <Tooltip content={<CustomTooltip />} />
+                                            <Bar dataKey="revenue" name="Revenue" radius={[0, 4, 4, 0]}>
+                                                {revenueByPromoter.map((_, i) => (
+                                                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} fillOpacity={1 - (i * 0.08)} />
+                                                ))}
+                                            </Bar>
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                )}
+                            </div>
+
+                            {/* ── Promoter Leaderboard ── */}
+                            <div className="bg-surface border border-border-light rounded-xl p-4 sm:p-6">
+                                <h3 className="text-sm font-semibold text-foreground mb-4">Promoter Leaderboard</h3>
+                                {promoterLeaderboard.length === 0 ? (
+                                    <p className="text-sm text-text-muted py-8 text-center">No promoter data available.</p>
+                                ) : (
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full">
+                                            <thead>
+                                                <tr className="border-b border-border-light">
+                                                    <th className="text-left px-3 py-2.5 text-xs text-text-muted uppercase tracking-wider font-medium">#</th>
+                                                    <th className="text-left px-3 py-2.5 text-xs text-text-muted uppercase tracking-wider font-medium">Promoter</th>
+                                                    <th onClick={() => handleLeaderboardSort("count")} className="text-left px-3 py-2.5 text-xs text-text-muted uppercase tracking-wider font-medium cursor-pointer hover:text-text-secondary transition-colors">Promos <LeaderSortIcon field="count" /></th>
+                                                    <th onClick={() => handleLeaderboardSort("revenue")} className="text-left px-3 py-2.5 text-xs text-text-muted uppercase tracking-wider font-medium cursor-pointer hover:text-text-secondary transition-colors">Revenue <LeaderSortIcon field="revenue" /></th>
+                                                    <th onClick={() => handleLeaderboardSort("avg")} className="text-left px-3 py-2.5 text-xs text-text-muted uppercase tracking-wider font-medium cursor-pointer hover:text-text-secondary transition-colors">Avg Value <LeaderSortIcon field="avg" /></th>
+                                                    <th className="text-left px-3 py-2.5 text-xs text-text-muted uppercase tracking-wider font-medium">Top Method</th>
+                                                    <th onClick={() => handleLeaderboardSort("pct")} className="text-right px-3 py-2.5 text-xs text-text-muted uppercase tracking-wider font-medium cursor-pointer hover:text-text-secondary transition-colors">% Rev <LeaderSortIcon field="pct" /></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {promoterLeaderboard.map((row, i) => (
+                                                    <tr key={row.name} className="border-b border-border-light/50 hover:bg-surface-hover transition-colors">
+                                                        <td className="px-3 py-3 text-sm text-text-muted font-medium">
+                                                            {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}`}
+                                                        </td>
+                                                        <td className="px-3 py-3 text-sm text-foreground font-medium">{row.name}</td>
+                                                        <td className="px-3 py-3 text-sm text-text-secondary">{row.count}</td>
+                                                        <td className="px-3 py-3 text-sm text-accent font-medium">${row.revenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
+                                                        <td className="px-3 py-3 text-sm text-text-secondary">${row.avg.toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
+                                                        <td className="px-3 py-3 text-sm text-text-muted">{row.topMethod}</td>
+                                                        <td className="px-3 py-3 text-sm text-right">
+                                                            <div className="flex items-center justify-end gap-2">
+                                                                <div className="w-16 h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+                                                                    <div className="h-full bg-accent rounded-full" style={{ width: `${Math.min(row.pct, 100)}%` }} />
+                                                                </div>
+                                                                <span className="text-text-muted">{row.pct.toFixed(1)}%</span>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
                             </div>
                         </>
                     )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { Promo } from "@/lib/types";
+import { Promo, PAYMENT_METHODS } from "@/lib/types";
 import { Timestamp } from "firebase/firestore";
 import { useState, useMemo } from "react";
 
@@ -10,6 +10,7 @@ interface PromoTableProps {
     onDelete: (promoId: string) => void;
     onDuplicate: (promo: Promo) => void;
     onCancelSeries?: (groupId: string) => void;
+    onBulkUpdateStatus?: (ids: string[], status: string) => Promise<void>;
 }
 
 type SortField = "promoDate" | "promoting" | "paymentAmount" | "paymentStatus";
@@ -38,21 +39,43 @@ function getStatusColor(status: string) {
     }
 }
 
-export default function PromoTable({ promos, onEdit, onDelete, onDuplicate, onCancelSeries }: PromoTableProps) {
+export default function PromoTable({ promos, onEdit, onDelete, onDuplicate, onCancelSeries, onBulkUpdateStatus }: PromoTableProps) {
     const [search, setSearch] = useState("");
     const [filterStatus, setFilterStatus] = useState<string>("All");
     const [filterAccount, setFilterAccount] = useState<string>("All");
     const [filterRecurring, setFilterRecurring] = useState<RecurringFilter>("all");
+    const [filterPromoter, setFilterPromoter] = useState<string>("All");
+    const [filterArtist, setFilterArtist] = useState<string>("All");
+    const [filterPaymentMethod, setFilterPaymentMethod] = useState<string>("All");
     const [filterDateFrom, setFilterDateFrom] = useState("");
     const [filterDateTo, setFilterDateTo] = useState("");
     const [sortField, setSortField] = useState<SortField>("promoDate");
     const [sortDir, setSortDir] = useState<SortDir>("desc");
     const [showFilters, setShowFilters] = useState(false);
 
-    const uniqueAccounts = useMemo(
-        () => [...new Set(promos.map((p) => p.accountHandle))],
-        [promos]
-    );
+    // Select mode
+    const [selectMode, setSelectMode] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [bulkLoading, setBulkLoading] = useState(false);
+    const [toast, setToast] = useState("");
+    const [showPromoterSelect, setShowPromoterSelect] = useState(false);
+
+    const uniqueAccounts = useMemo(() => [...new Set(promos.map((p) => p.accountHandle))].sort(), [promos]);
+    const uniquePromoters = useMemo(() => [...new Set(promos.map((p) => p.promoterName).filter(Boolean))].sort(), [promos]);
+    const uniqueArtists = useMemo(() => [...new Set(promos.map((p) => p.promoting).filter(Boolean))].sort(), [promos]);
+
+    const hasActiveFilters = filterStatus !== "All" || filterAccount !== "All" || filterRecurring !== "all" || filterPromoter !== "All" || filterArtist !== "All" || filterPaymentMethod !== "All" || filterDateFrom || filterDateTo;
+
+    const clearAllFilters = () => {
+        setFilterStatus("All");
+        setFilterAccount("All");
+        setFilterRecurring("all");
+        setFilterPromoter("All");
+        setFilterArtist("All");
+        setFilterPaymentMethod("All");
+        setFilterDateFrom("");
+        setFilterDateTo("");
+    };
 
     const filteredAndSorted = useMemo(() => {
         let result = [...promos];
@@ -67,13 +90,11 @@ export default function PromoTable({ promos, onEdit, onDelete, onDuplicate, onCa
             );
         }
 
-        if (filterStatus !== "All") {
-            result = result.filter((p) => p.paymentStatus === filterStatus);
-        }
-
-        if (filterAccount !== "All") {
-            result = result.filter((p) => p.accountHandle === filterAccount);
-        }
+        if (filterStatus !== "All") result = result.filter((p) => p.paymentStatus === filterStatus);
+        if (filterAccount !== "All") result = result.filter((p) => p.accountHandle === filterAccount);
+        if (filterPromoter !== "All") result = result.filter((p) => p.promoterName === filterPromoter);
+        if (filterArtist !== "All") result = result.filter((p) => p.promoting === filterArtist);
+        if (filterPaymentMethod !== "All") result = result.filter((p) => p.paymentMethod === filterPaymentMethod);
 
         if (filterRecurring === "recurring") {
             result = result.filter((p) => p.isRecurring);
@@ -111,7 +132,7 @@ export default function PromoTable({ promos, onEdit, onDelete, onDuplicate, onCa
         });
 
         return result;
-    }, [promos, search, filterStatus, filterAccount, filterRecurring, filterDateFrom, filterDateTo, sortField, sortDir]);
+    }, [promos, search, filterStatus, filterAccount, filterPromoter, filterArtist, filterPaymentMethod, filterRecurring, filterDateFrom, filterDateTo, sortField, sortDir]);
 
     const handleSort = (field: SortField) => {
         if (sortField === field) {
@@ -122,12 +143,64 @@ export default function PromoTable({ promos, onEdit, onDelete, onDuplicate, onCa
         }
     };
 
+    const toggleSelect = (id: string) => {
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+    const toggleSelectAll = () => {
+        const visibleIds = filteredAndSorted.map((p) => p.id!).filter(Boolean);
+        const allSelected = visibleIds.every((id) => selectedIds.has(id));
+        if (allSelected) {
+            setSelectedIds(new Set());
+        } else {
+            setSelectedIds(new Set(visibleIds));
+        }
+    };
+
+    const selectByPromoter = (promoterName: string) => {
+        const ids = filteredAndSorted.filter((p) => p.promoterName === promoterName && p.id).map((p) => p.id!);
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            ids.forEach((id) => next.add(id));
+            return next;
+        });
+        setShowPromoterSelect(false);
+    };
+
+    const handleBulkAction = async (status: string) => {
+        if (!onBulkUpdateStatus || selectedIds.size === 0) return;
+        setBulkLoading(true);
+        try {
+            await onBulkUpdateStatus(Array.from(selectedIds), status);
+            setToast(`${selectedIds.size} promo${selectedIds.size !== 1 ? "s" : ""} marked as ${status}`);
+            setSelectedIds(new Set());
+            setSelectMode(false);
+            setTimeout(() => setToast(""), 3000);
+        } catch {
+            setToast("Failed to update promos.");
+            setTimeout(() => setToast(""), 3000);
+        } finally {
+            setBulkLoading(false);
+        }
+    };
+
+    const exitSelectMode = () => {
+        setSelectMode(false);
+        setSelectedIds(new Set());
+        setShowPromoterSelect(false);
+    };
+
+    // Unique promoters in current filtered view (for "Select by Promoter")
+    const visiblePromoters = useMemo(() => [...new Set(filteredAndSorted.map((p) => p.promoterName).filter(Boolean))].sort(), [filteredAndSorted]);
+
     const SortIcon = ({ field }: { field: SortField }) => {
-        if (sortField !== field)
-            return <span className="text-white/20 ml-1">↕</span>;
-        return (
-            <span className="text-accent ml-1">{sortDir === "asc" ? "↑" : "↓"}</span>
-        );
+        if (sortField !== field) return <span className="text-white/20 ml-1">↕</span>;
+        return <span className="text-accent ml-1">{sortDir === "asc" ? "↑" : "↓"}</span>;
     };
 
     const RecurringIcon = () => (
@@ -135,6 +208,8 @@ export default function PromoTable({ promos, onEdit, onDelete, onDuplicate, onCa
             <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182M2.985 19.644l3.181-3.182" />
         </svg>
     );
+
+    const selectCls = "w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-accent/50 appearance-none cursor-pointer";
 
     return (
         <div className="space-y-4">
@@ -146,49 +221,119 @@ export default function PromoTable({ promos, onEdit, onDelete, onDuplicate, onCa
                     </svg>
                     <input type="text" placeholder="Search by name, promoter, or account..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg pl-10 pr-4 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 transition-all" />
                 </div>
-                <button onClick={() => setShowFilters(!showFilters)} className={`px-4 py-2.5 rounded-lg border text-sm transition-all flex items-center gap-2 ${showFilters ? "bg-accent/10 border-accent/30 text-accent" : "bg-white/[0.04] border-white/[0.08] text-white/50 hover:text-white/70"}`}>
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
-                    </svg>
-                    Filters
-                </button>
+                <div className="flex gap-2">
+                    <button onClick={() => setShowFilters(!showFilters)} className={`px-4 py-2.5 rounded-lg border text-sm transition-all flex items-center gap-2 ${showFilters ? "bg-accent/10 border-accent/30 text-accent" : "bg-white/[0.04] border-white/[0.08] text-white/50 hover:text-white/70"}`}>
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
+                        </svg>
+                        Filters
+                    </button>
+                    {onBulkUpdateStatus && (
+                        <button
+                            onClick={() => selectMode ? exitSelectMode() : setSelectMode(true)}
+                            className={`px-4 py-2.5 rounded-lg border text-sm transition-all flex items-center gap-2 ${selectMode ? "bg-accent/10 border-accent/30 text-accent" : "bg-white/[0.04] border-white/[0.08] text-white/50 hover:text-white/70"}`}
+                        >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            {selectMode ? "Cancel" : "Select"}
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* Expandable Filters */}
             {showFilters && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 p-4 bg-white/[0.02] border border-white/[0.06] rounded-lg animate-fade-in">
-                    <div>
-                        <label className="block text-xs text-white/40 mb-1.5 uppercase tracking-wider">Status</label>
-                        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-accent/50 appearance-none cursor-pointer">
-                            <option value="All">All Statuses</option>
-                            <option value="Pending">Pending</option>
-                            <option value="Paid">Paid</option>
-                            <option value="Overdue">Overdue</option>
-                        </select>
+                <div className="p-4 bg-white/[0.02] border border-white/[0.06] rounded-lg animate-fade-in space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div>
+                            <label className="block text-xs text-white/40 mb-1.5 uppercase tracking-wider">Status</label>
+                            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className={selectCls}>
+                                <option value="All">All Statuses</option>
+                                <option value="Pending">Pending</option>
+                                <option value="Paid">Paid</option>
+                                <option value="Overdue">Overdue</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs text-white/40 mb-1.5 uppercase tracking-wider">Account</label>
+                            <select value={filterAccount} onChange={(e) => setFilterAccount(e.target.value)} className={selectCls}>
+                                <option value="All">All Accounts</option>
+                                {uniqueAccounts.map((acc) => (<option key={acc} value={acc}>{acc}</option>))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs text-white/40 mb-1.5 uppercase tracking-wider">Promoter</label>
+                            <select value={filterPromoter} onChange={(e) => setFilterPromoter(e.target.value)} className={selectCls}>
+                                <option value="All">All Promoters</option>
+                                {uniquePromoters.map((p) => (<option key={p} value={p}>{p}</option>))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs text-white/40 mb-1.5 uppercase tracking-wider">Artist</label>
+                            <select value={filterArtist} onChange={(e) => setFilterArtist(e.target.value)} className={selectCls}>
+                                <option value="All">All Artists</option>
+                                {uniqueArtists.map((a) => (<option key={a} value={a}>{a}</option>))}
+                            </select>
+                        </div>
                     </div>
-                    <div>
-                        <label className="block text-xs text-white/40 mb-1.5 uppercase tracking-wider">Account</label>
-                        <select value={filterAccount} onChange={(e) => setFilterAccount(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-accent/50 appearance-none cursor-pointer">
-                            <option value="All">All Accounts</option>
-                            {uniqueAccounts.map((acc) => (<option key={acc} value={acc}>{acc}</option>))}
-                        </select>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div>
+                            <label className="block text-xs text-white/40 mb-1.5 uppercase tracking-wider">Payment Method</label>
+                            <select value={filterPaymentMethod} onChange={(e) => setFilterPaymentMethod(e.target.value)} className={selectCls}>
+                                <option value="All">All Methods</option>
+                                {PAYMENT_METHODS.map((m) => (<option key={m} value={m}>{m}</option>))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs text-white/40 mb-1.5 uppercase tracking-wider">Type</label>
+                            <select value={filterRecurring} onChange={(e) => setFilterRecurring(e.target.value as RecurringFilter)} className={selectCls}>
+                                <option value="all">All Types</option>
+                                <option value="recurring">Recurring Only</option>
+                                <option value="onetime">One-time Only</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs text-white/40 mb-1.5 uppercase tracking-wider">From Date</label>
+                            <input type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-accent/50" />
+                        </div>
+                        <div>
+                            <label className="block text-xs text-white/40 mb-1.5 uppercase tracking-wider">To Date</label>
+                            <input type="date" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-accent/50" />
+                        </div>
                     </div>
-                    <div>
-                        <label className="block text-xs text-white/40 mb-1.5 uppercase tracking-wider">Type</label>
-                        <select value={filterRecurring} onChange={(e) => setFilterRecurring(e.target.value as RecurringFilter)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-accent/50 appearance-none cursor-pointer">
-                            <option value="all">All Types</option>
-                            <option value="recurring">Recurring Only</option>
-                            <option value="onetime">One-time Only</option>
-                        </select>
+                    {hasActiveFilters && (
+                        <button onClick={clearAllFilters} className="text-xs text-accent hover:text-accent/80 transition-colors">
+                            ✕ Clear all filters
+                        </button>
+                    )}
+                </div>
+            )}
+
+            {/* Select Mode Header */}
+            {selectMode && (
+                <div className="flex items-center gap-3 px-4 py-2.5 bg-accent/5 border border-accent/20 rounded-lg animate-fade-in">
+                    <label className="flex items-center gap-2 cursor-pointer text-sm text-text-muted hover:text-foreground transition-colors">
+                        <input type="checkbox" checked={filteredAndSorted.length > 0 && filteredAndSorted.every((p) => p.id && selectedIds.has(p.id))} onChange={toggleSelectAll} className="w-4 h-4 rounded border-border-light accent-accent cursor-pointer" />
+                        Select All
+                    </label>
+                    <div className="relative">
+                        <button onClick={() => setShowPromoterSelect(!showPromoterSelect)} className="px-3 py-1.5 rounded-lg border border-border-light text-xs text-text-muted hover:text-foreground hover:border-accent/30 transition-all flex items-center gap-1">
+                            Select by Promoter
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                        </button>
+                        {showPromoterSelect && (
+                            <div className="absolute top-full left-0 mt-1 w-48 bg-surface border border-border-light rounded-lg shadow-xl z-30 py-1 max-h-48 overflow-y-auto animate-fade-in">
+                                {visiblePromoters.map((name) => (
+                                    <button key={name} onClick={() => selectByPromoter(name)} className="w-full text-left px-3 py-2 text-sm text-text-secondary hover:bg-surface-hover hover:text-foreground transition-colors">
+                                        {name}
+                                    </button>
+                                ))}
+                                {visiblePromoters.length === 0 && <p className="px-3 py-2 text-xs text-text-muted">No promoters</p>}
+                            </div>
+                        )}
                     </div>
-                    <div>
-                        <label className="block text-xs text-white/40 mb-1.5 uppercase tracking-wider">From Date</label>
-                        <input type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-accent/50" />
-                    </div>
-                    <div>
-                        <label className="block text-xs text-white/40 mb-1.5 uppercase tracking-wider">To Date</label>
-                        <input type="date" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} className="w-full bg-white/[0.06] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-accent/50" />
-                    </div>
+                    <span className="text-xs text-text-muted ml-auto">{selectedIds.size} selected</span>
                 </div>
             )}
 
@@ -197,6 +342,7 @@ export default function PromoTable({ promos, onEdit, onDelete, onDuplicate, onCa
                 <table className="w-full">
                     <thead>
                         <tr className="border-b border-border-light">
+                            {selectMode && <th className="w-10 px-3 py-3"></th>}
                             <th onClick={() => handleSort("promoDate")} className="text-left px-4 py-3 text-xs text-text-muted uppercase tracking-wider font-medium cursor-pointer hover:text-text-secondary transition-colors">Date <SortIcon field="promoDate" /></th>
                             <th onClick={() => handleSort("promoting")} className="text-left px-4 py-3 text-xs text-text-muted uppercase tracking-wider font-medium cursor-pointer hover:text-text-secondary transition-colors">Promoting <SortIcon field="promoting" /></th>
                             <th className="text-left px-4 py-3 text-xs text-text-muted uppercase tracking-wider font-medium">Account</th>
@@ -210,13 +356,18 @@ export default function PromoTable({ promos, onEdit, onDelete, onDuplicate, onCa
                     <tbody>
                         {filteredAndSorted.length === 0 ? (
                             <tr>
-                                <td colSpan={7} className="text-center py-12 text-white/30 text-sm">
+                                <td colSpan={selectMode ? 9 : 8} className="text-center py-12 text-white/30 text-sm">
                                     {promos.length === 0 ? 'No promos yet. Click "Add Promo" to get started.' : "No promos match your filters."}
                                 </td>
                             </tr>
                         ) : (
                             filteredAndSorted.map((promo) => (
-                                <tr key={promo.id} className="border-b border-border-light hover:bg-surface-hover transition-colors cursor-pointer group" onClick={() => onEdit(promo)}>
+                                <tr key={promo.id} className={`border-b border-border-light hover:bg-surface-hover transition-colors cursor-pointer group ${selectedIds.has(promo.id!) ? "bg-accent/5" : ""}`} onClick={() => selectMode ? (promo.id && toggleSelect(promo.id)) : onEdit(promo)}>
+                                    {selectMode && (
+                                        <td className="px-3 py-3.5">
+                                            <input type="checkbox" checked={!!promo.id && selectedIds.has(promo.id)} onChange={() => promo.id && toggleSelect(promo.id)} onClick={(e) => e.stopPropagation()} className="w-4 h-4 rounded border-border-light accent-accent cursor-pointer" />
+                                        </td>
+                                    )}
                                     <td className="px-4 py-3.5 text-sm text-text-secondary">
                                         {formatDate(promo.promoDate)}
                                         {promo.isRecurring && <RecurringIcon />}
@@ -289,21 +440,26 @@ export default function PromoTable({ promos, onEdit, onDelete, onDuplicate, onCa
                     </div>
                 ) : (
                     filteredAndSorted.map((promo) => (
-                        <div key={promo.id} onClick={() => onEdit(promo)} className="bg-surface border border-border-light rounded-xl p-4 active:bg-surface-hover transition-all cursor-pointer">
+                        <div key={promo.id} onClick={() => selectMode ? (promo.id && toggleSelect(promo.id)) : onEdit(promo)} className={`bg-surface border border-border-light rounded-xl p-4 active:bg-surface-hover transition-all cursor-pointer ${selectedIds.has(promo.id!) ? "ring-1 ring-accent/40 bg-accent/5" : ""}`}>
                             <div className="flex items-start justify-between mb-2">
-                                <div>
-                                    <div className="flex items-center gap-2 mb-0.5">
-                                        <p className="text-foreground font-medium">
-                                            {promo.promoting}
-                                            {promo.isRecurring && <RecurringIcon />}
-                                        </p>
-                                        {promo.isBundle && promo.bundleCount && (
-                                            <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
-                                                {promo.bundleIndex ? `${promo.bundleIndex}/${promo.bundleCount}` : `${promo.bundleCount}x`}
-                                            </span>
-                                        )}
+                                <div className="flex items-center gap-2">
+                                    {selectMode && (
+                                        <input type="checkbox" checked={!!promo.id && selectedIds.has(promo.id)} onChange={() => promo.id && toggleSelect(promo.id)} onClick={(e) => e.stopPropagation()} className="w-4 h-4 rounded border-border-light accent-accent cursor-pointer" />
+                                    )}
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-0.5">
+                                            <p className="text-foreground font-medium">
+                                                {promo.promoting}
+                                                {promo.isRecurring && <RecurringIcon />}
+                                            </p>
+                                            {promo.isBundle && promo.bundleCount && (
+                                                <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                                                    {promo.bundleIndex ? `${promo.bundleIndex}/${promo.bundleCount}` : `${promo.bundleCount}x`}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className="text-accent text-sm font-mono">{promo.accountHandle}</p>
                                     </div>
-                                    <p className="text-accent text-sm font-mono">{promo.accountHandle}</p>
                                 </div>
                                 <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium border ${getStatusColor(promo.paymentStatus)}`}>{promo.paymentStatus}</span>
                             </div>
@@ -324,14 +480,16 @@ export default function PromoTable({ promos, onEdit, onDelete, onDuplicate, onCa
                                 </a>
                             )}
                             {promo.notes && (<p className="text-xs text-text-muted mt-2 truncate">{promo.notes}</p>)}
-                            <div className="flex justify-end gap-3 mt-3 pt-2 border-t border-border-light">
-                                <button onClick={(e) => { e.stopPropagation(); onDuplicate(promo); }} className="text-xs text-accent hover:text-accent-light transition-colors">Duplicate</button>
-                                {promo.isRecurring && promo.recurringGroupId && onCancelSeries && (
-                                    <button onClick={(e) => { e.stopPropagation(); if (confirm("Cancel all future pending promos in this series?")) onCancelSeries(promo.recurringGroupId!); }} className="text-xs text-amber-500 hover:text-amber-400 transition-colors">Cancel Series</button>
-                                )}
-                                <button onClick={(e) => { e.stopPropagation(); onEdit(promo); }} className="text-xs text-accent hover:text-accent-light transition-colors">Edit</button>
-                                <button onClick={(e) => { e.stopPropagation(); if (promo.id && confirm("Delete this promo?")) { onDelete(promo.id); } }} className="text-xs text-red-500 hover:text-red-400 transition-colors">Delete</button>
-                            </div>
+                            {!selectMode && (
+                                <div className="flex justify-end gap-3 mt-3 pt-2 border-t border-border-light">
+                                    <button onClick={(e) => { e.stopPropagation(); onDuplicate(promo); }} className="text-xs text-accent hover:text-accent-light transition-colors">Duplicate</button>
+                                    {promo.isRecurring && promo.recurringGroupId && onCancelSeries && (
+                                        <button onClick={(e) => { e.stopPropagation(); if (confirm("Cancel all future pending promos in this series?")) onCancelSeries(promo.recurringGroupId!); }} className="text-xs text-amber-500 hover:text-amber-400 transition-colors">Cancel Series</button>
+                                    )}
+                                    <button onClick={(e) => { e.stopPropagation(); onEdit(promo); }} className="text-xs text-accent hover:text-accent-light transition-colors">Edit</button>
+                                    <button onClick={(e) => { e.stopPropagation(); if (promo.id && confirm("Delete this promo?")) { onDelete(promo.id); } }} className="text-xs text-red-500 hover:text-red-400 transition-colors">Delete</button>
+                                </div>
+                            )}
                         </div>
                     ))
                 )}
@@ -342,6 +500,26 @@ export default function PromoTable({ promos, onEdit, onDelete, onDuplicate, onCa
                 <p className="text-xs text-white/30 text-right">
                     Showing {filteredAndSorted.length} of {promos.length} promo{promos.length !== 1 ? "s" : ""}
                 </p>
+            )}
+
+            {/* Floating Action Bar (Select Mode) */}
+            {selectMode && selectedIds.size > 0 && (
+                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-5 py-3 bg-surface/95 backdrop-blur-md border border-border-light rounded-2xl shadow-2xl animate-fade-in">
+                    <span className="text-sm text-foreground font-medium whitespace-nowrap">{selectedIds.size} selected</span>
+                    <div className="w-px h-6 bg-border-light" />
+                    <button disabled={bulkLoading} onClick={() => handleBulkAction("Paid")} className="px-3.5 py-1.5 rounded-lg bg-green-500/15 text-green-400 border border-green-500/20 text-xs font-medium hover:bg-green-500/25 transition-all disabled:opacity-50">Mark Paid</button>
+                    <button disabled={bulkLoading} onClick={() => handleBulkAction("Pending")} className="px-3.5 py-1.5 rounded-lg bg-amber-500/15 text-amber-400 border border-amber-500/20 text-xs font-medium hover:bg-amber-500/25 transition-all disabled:opacity-50">Mark Pending</button>
+                    <button disabled={bulkLoading} onClick={() => handleBulkAction("Overdue")} className="px-3.5 py-1.5 rounded-lg bg-red-500/15 text-red-400 border border-red-500/20 text-xs font-medium hover:bg-red-500/25 transition-all disabled:opacity-50">Mark Overdue</button>
+                    <button onClick={exitSelectMode} className="px-3 py-1.5 rounded-lg text-xs text-text-muted hover:text-foreground transition-colors">Cancel</button>
+                    {bulkLoading && <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />}
+                </div>
+            )}
+
+            {/* Toast */}
+            {toast && (
+                <div className="fixed bottom-6 right-6 z-50 px-4 py-3 bg-surface border border-border-light rounded-xl shadow-2xl text-sm text-foreground animate-fade-in">
+                    {toast}
+                </div>
             )}
         </div>
     );

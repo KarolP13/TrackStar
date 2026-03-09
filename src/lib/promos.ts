@@ -9,6 +9,7 @@ import {
     getDocs,
     onSnapshot,
     Timestamp,
+    writeBatch,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { Promo, PromoFormData, SavedPromoter, SavedAccount } from "./types";
@@ -265,4 +266,14 @@ export async function addSavedAccount(userId: string, handle: string) {
 
 export async function deleteSavedAccount(accountId: string) {
     return deleteDoc(doc(db, ACCOUNTS_COLLECTION, accountId));
+}
+
+// ── Bulk Operations ───────────────────────────────────────
+
+export async function bulkUpdateStatus(promoIds: string[], status: string) {
+    const batch = writeBatch(db);
+    promoIds.forEach((id) => {
+        batch.update(doc(db, PROMOS_COLLECTION, id), { paymentStatus: status });
+    });
+    await batch.commit();
 }

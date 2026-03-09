@@ -11,7 +11,7 @@ import { Promo, PromoFormData, SavedPromoter, SavedAccount, PromoterPreset } fro
 import {
   subscribeToPromos, addPromo, updatePromo, deletePromo,
   subscribeToSavedPromoters, subscribeToSavedAccounts,
-  addRecurringPromo, cancelRecurringSeries,
+  addRecurringPromo, cancelRecurringSeries, bulkUpdateStatus,
 } from "@/lib/promos";
 import { exportPromoTablePDF } from "@/lib/pdfExport";
 import { exportPromosToCSV } from "@/lib/csvExport";
@@ -89,6 +89,10 @@ export default function DashboardPage() {
     await cancelRecurringSeries(groupId, user.uid);
   };
 
+  const handleBulkUpdateStatus = async (ids: string[], status: string) => {
+    await bulkUpdateStatus(ids, status);
+  };
+
   const handleOpenNew = () => {
     setEditingPromo(null);
     setIsDuplicate(false);
@@ -156,6 +160,7 @@ export default function DashboardPage() {
                   onDelete={handleDelete}
                   onDuplicate={handleDuplicate}
                   onCancelSeries={handleCancelSeries}
+                  onBulkUpdateStatus={handleBulkUpdateStatus}
                 />
               </div>
             </div>
