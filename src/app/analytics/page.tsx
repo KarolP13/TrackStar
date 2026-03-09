@@ -12,7 +12,7 @@ import {
     Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 
-type DateRange = "7d" | "this_month" | "last_month" | "all";
+type DateRange = "7d" | "30d" | "90d" | "this_month" | "last_month" | "all";
 type TimeView = "daily" | "weekly" | "monthly";
 type LeaderboardSort = "revenue" | "count" | "avg" | "pct";
 
@@ -47,7 +47,7 @@ function getDateRangeBounds(range: DateRange): { start: Date | null; end: Date |
         const end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
         return { start, end };
     }
-    const days = 7; // For 7d
+    const days = range === "7d" ? 7 : range === "30d" ? 30 : 90;
     const start = new Date(now);
     start.setDate(start.getDate() - days);
     start.setHours(0, 0, 0, 0);
@@ -331,8 +331,10 @@ export default function AnalyticsPage() {
 
     const dateRangeOptions: { value: DateRange; label: string }[] = [
         { value: "7d", label: "7 Days" },
+        { value: "30d", label: "30 Days" },
         { value: "this_month", label: "This Month" },
         { value: "last_month", label: "Last Month" },
+        { value: "90d", label: "90 Days" },
         { value: "all", label: "All Time" },
     ];
 
