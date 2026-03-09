@@ -68,6 +68,7 @@ export default function PromoModal({
     const [showAddAccount, setShowAddAccount] = useState(false);
     const [showRecurring, setShowRecurring] = useState(false);
     const [saveAsDefault, setSaveAsDefault] = useState(false);
+    const [promotingSuggestion, setPromotingSuggestion] = useState("");
 
     useEffect(() => {
         if (editingPromo) {
@@ -203,6 +204,39 @@ export default function PromoModal({
         });
     };
 
+    const handlePromotingChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value;
+        setFormData({ ...formData, promoting: val });
+
+        if (val.trim() === "") {
+            setPromotingSuggestion("");
+        } else {
+            const match = pastPromotingNames.find(n => n.toLowerCase().startsWith(val.toLowerCase()));
+            if (match && match.toLowerCase() !== val.toLowerCase()) {
+                setPromotingSuggestion(val + match.substring(val.length));
+            } else {
+                setPromotingSuggestion("");
+            }
+        }
+    };
+
+    const handlePromotingKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "Tab" && promotingSuggestion) {
+            e.preventDefault();
+            setFormData({ ...formData, promoting: promotingSuggestion });
+            setPromotingSuggestion("");
+        } else if (e.key === "ArrowRight" && promotingSuggestion) {
+            const input = e.currentTarget;
+            if (input.selectionStart === formData.promoting.length) {
+                e.preventDefault();
+                setFormData({ ...formData, promoting: promotingSuggestion });
+                setPromotingSuggestion("");
+            }
+        } else if (e.key === "Escape") {
+            setPromotingSuggestion("");
+        }
+    };
+
     // Auto-fill payment from promoter preset when promoter changes
     const handlePromoterChange = (name: string) => {
         const preset = promoterPresets[name];
@@ -268,14 +302,26 @@ export default function PromoModal({
                             <label className="block text-xs text-text-muted mb-1.5 uppercase tracking-wider font-medium">
                                 Promoting <span className="text-red-400">*</span>
                             </label>
-                            <input
-                                type="text"
-                                list="promoting-suggestions"
-                                value={formData.promoting}
-                                onChange={(e) => setFormData({ ...formData, promoting: e.target.value })}
-                                placeholder="e.g. Drake, Nike Campaign, New Album"
-                                className="w-full bg-surface border border-border-light rounded-lg px-4 py-2.5 text-sm text-foreground placeholder-text-muted focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 transition-all"
-                            />
+                            <div className="relative flex items-center">
+                                <div className="absolute inset-0 bg-surface rounded-lg pointer-events-none z-0"></div>
+                                <input
+                                    type="text"
+                                    list="promoting-suggestions"
+                                    value={formData.promoting}
+                                    onChange={handlePromotingChange}
+                                    onKeyDown={handlePromotingKeyDown}
+                                    onBlur={() => setTimeout(() => setPromotingSuggestion(""), 150)}
+                                    placeholder="e.g. Drake, Nike Campaign, New Album"
+                                    className="w-full bg-transparent border border-border-light rounded-lg px-4 py-2.5 text-sm text-foreground placeholder-text-muted focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 transition-all relative z-10"
+                                    autoComplete="off"
+                                />
+                                {promotingSuggestion && formData.promoting && promotingSuggestion.toLowerCase().startsWith(formData.promoting.toLowerCase()) && (
+                                    <div className="absolute inset-y-0 left-4 right-4 flex items-center pointer-events-none overflow-hidden whitespace-pre text-sm z-20">
+                                        <span className="opacity-0">{formData.promoting}</span>
+                                        <span className="text-text-muted opacity-60">{promotingSuggestion.slice(formData.promoting.length)}</span>
+                                    </div>
+                                )}
+                            </div>
                             <datalist id="promoting-suggestions">
                                 {pastPromotingNames.map((name) => (
                                     <option key={name} value={name} />
