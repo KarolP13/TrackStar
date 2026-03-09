@@ -95,6 +95,12 @@ export default function DashboardPage() {
     await bulkUpdateStatus(ids, status);
   };
 
+  const handleLinkBundle = async (ids: string[]) => {
+    const groupId = crypto.randomUUID();
+    const batchPromises = ids.map(id => updatePromo(id, { bundleGroupId: groupId, isBundle: true }));
+    await Promise.all(batchPromises);
+  };
+
   const handleImportPromos = async (promos: Omit<Promo, "id">[]) => {
     const { collection, addDoc } = await import("firebase/firestore");
     const { db } = await import("@/lib/firebase");
@@ -180,6 +186,7 @@ export default function DashboardPage() {
                   onDuplicate={handleDuplicate}
                   onCancelSeries={handleCancelSeries}
                   onBulkUpdateStatus={handleBulkUpdateStatus}
+                  onLinkBundle={handleLinkBundle}
                 />
               </div>
             </div>

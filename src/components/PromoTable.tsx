@@ -8,10 +8,11 @@ import { createPortal } from "react-dom";
 interface PromoTableProps {
     promos: Promo[];
     onEdit: (promo: Promo) => void;
-    onDelete: (promoId: string) => void;
+    onDelete: (id: string) => Promise<void>;
     onDuplicate: (promo: Promo) => void;
-    onCancelSeries?: (groupId: string) => void;
+    onCancelSeries?: (groupId: string) => Promise<void>;
     onBulkUpdateStatus?: (ids: string[], status: string) => Promise<void>;
+    onLinkBundle?: (ids: string[]) => Promise<void>;
 }
 
 type SortField = "promoDate" | "promoting" | "paymentAmount" | "paymentStatus";
@@ -47,13 +48,20 @@ function getStatusColor(status: string) {
     }
 }
 
-export default function PromoTable({ promos, onEdit, onDelete, onDuplicate, onCancelSeries, onBulkUpdateStatus }: PromoTableProps) {
+export default function PromoTable({ promos, onEdit,
+    onDelete,
+    onDuplicate,
+    onCancelSeries,
+    onBulkUpdateStatus,
+    onLinkBundle,
+}: PromoTableProps) {
     const [search, setSearch] = useState("");
     const [filterStatus, setFilterStatus] = useState<string>("All");
     const [filterAccount, setFilterAccount] = useState<string>("All");
     const [filterRecurring, setFilterRecurring] = useState<RecurringFilter>("all");
     const [filterPromoter, setFilterPromoter] = useState<string>("All");
     const [filterArtist, setFilterArtist] = useState<string>("All");
+    const [filterBundleGroupId, setFilterBundleGroupId] = useState<string | null>(null);
     const [filterPaymentMethod, setFilterPaymentMethod] = useState<string>("All");
     const [filterDateFrom, setFilterDateFrom] = useState("");
     const [filterDateTo, setFilterDateTo] = useState("");
@@ -77,7 +85,7 @@ export default function PromoTable({ promos, onEdit, onDelete, onDuplicate, onCa
     const uniquePromoters = useMemo(() => [...new Set(promos.map((p) => p.promoterName).filter(Boolean))].sort(), [promos]);
     const uniqueArtists = useMemo(() => [...new Set(promos.map((p) => p.promoting).filter(Boolean))].sort(), [promos]);
 
-    const hasActiveFilters = filterStatus !== "All" || filterAccount !== "All" || filterRecurring !== "all" || filterPromoter !== "All" || filterArtist !== "All" || filterPaymentMethod !== "All" || filterDateFrom || filterDateTo;
+    const hasActiveFilters = filterStatus !== "All" || filterAccount !== "All" || filterRecurring !== "all" || filterPromoter !== "All" || filterArtist !== "All" || filterPaymentMethod !== "All" || filterDateFrom || filterDateTo || filterBundleGroupId;
 
     const clearAllFilters = () => {
         setFilterStatus("All");
@@ -88,6 +96,7 @@ export default function PromoTable({ promos, onEdit, onDelete, onDuplicate, onCa
         setFilterPaymentMethod("All");
         setFilterDateFrom("");
         setFilterDateTo("");
+        setFilterBundleGroupId(null);
     };
 
     const filteredAndSorted = useMemo(() => {
@@ -125,6 +134,10 @@ export default function PromoTable({ promos, onEdit, onDelete, onDuplicate, onCa
             result = result.filter((p) => p.promoDate?.toDate() <= to);
         }
 
+        if (filterBundleGroupId) {
+            result = result.filter((p) => p.bundleGroupId === filterBundleGroupId);
+        }
+
         result.sort((a, b) => {
             let cmp = 0;
             switch (sortField) {
@@ -145,7 +158,7 @@ export default function PromoTable({ promos, onEdit, onDelete, onDuplicate, onCa
         });
 
         return result;
-    }, [promos, search, filterStatus, filterAccount, filterPromoter, filterArtist, filterPaymentMethod, filterRecurring, filterDateFrom, filterDateTo, sortField, sortDir]);
+    }, [promos, search, filterStatus, filterAccount, filterPromoter, filterArtist, filterPaymentMethod, filterRecurring, filterDateFrom, filterDateTo, filterBundleGroupId, sortField, sortDir]);
 
     const handleSort = (field: SortField) => {
         if (sortField === field) {
@@ -196,6 +209,23 @@ export default function PromoTable({ promos, onEdit, onDelete, onDuplicate, onCa
             setTimeout(() => setToast(""), 3000);
         } catch {
             setToast("Failed to update promos.");
+            setTimeout(() => setToast(""), 3000);
+        } finally {
+            setBulkLoading(false);
+        }
+    };
+
+    const handleLinkBundle = async () => {
+        if (!onLinkBundle || selectedIds.size === 0) return;
+        setBulkLoading(true);
+        try {
+            await onLinkBundle(Array.from(selectedIds));
+            setToast(`${selectedIds.size} promo${selectedIds.size !== 1 ? "s" : ""} linked as a bundle`);
+            setSelectedIds(new Set());
+            setSelectMode(false);
+            setTimeout(() => setToast(""), 3000);
+        } catch {
+            setToast("Failed to link promos.");
             setTimeout(() => setToast(""), 3000);
         } finally {
             setBulkLoading(false);
@@ -316,9 +346,14 @@ export default function PromoTable({ promos, onEdit, onDelete, onDuplicate, onCa
                         </div>
                     </div>
                     {hasActiveFilters && (
-                        <button onClick={clearAllFilters} className="text-xs text-accent hover:text-accent/80 transition-colors">
-                            ✕ Clear all filters
-                        </button>
+                        <div className="flex items-center gap-4">
+                            <button onClick={() => { clearAllFilters(); }} className="text-xs text-accent hover:text-accent/80 transition-colors">
+                                ✕ Clear all filters
+                            </button>
+                            {filterBundleGroupId && (
+                                <span className="text-xs text-white/50 bg-white/5 px-2 py-1 rounded">Filtered by Bundle</span>
+                            )}
+                        </div>
                     )}
                 </div>
             )}
@@ -389,9 +424,13 @@ export default function PromoTable({ promos, onEdit, onDelete, onDuplicate, onCa
                                         <div className="flex items-center gap-2">
                                             {promo.promoting}
                                             {promo.isBundle && promo.bundleCount && (
-                                                <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); setShowFilters(true); setFilterBundleGroupId(promo.bundleGroupId || null); }}
+                                                    className={`inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-bold border transition-colors ${promo.bundleGroupId ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30 hover:bg-purple-500/20" : "bg-white/5 text-text-muted border-white/10 hover:bg-white/10"}`}
+                                                    title={promo.bundleGroupId ? "View all promos in this bundle" : "Bundle post"}
+                                                >
                                                     {promo.bundleIndex ? `${promo.bundleIndex}/${promo.bundleCount}` : `${promo.bundleCount}x`}
-                                                </span>
+                                                </button>
                                             )}
                                         </div>
                                     </td>

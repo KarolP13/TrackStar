@@ -502,7 +502,10 @@ export default function PromoModal({
                                             min="1"
                                             max={formData.bundleCount || 100}
                                             value={formData.bundleIndex || ""}
-                                            onChange={(e) => setFormData({ ...formData, bundleIndex: parseInt(e.target.value) || null })}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                setFormData({ ...formData, bundleIndex: val === "" ? null : parseInt(val) });
+                                            }}
                                             placeholder="1"
                                             className="w-12 bg-surface border border-border-light rounded-lg px-2 py-1.5 text-sm text-foreground text-center focus:outline-none focus:border-accent/50 transition-all placeholder-text-muted"
                                         />
@@ -513,8 +516,11 @@ export default function PromoModal({
                                             type="number"
                                             min="2"
                                             max="100"
-                                            value={formData.bundleCount || 3}
-                                            onChange={(e) => setFormData({ ...formData, bundleCount: parseInt(e.target.value) || 3 })}
+                                            value={formData.bundleCount || ""}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                setFormData({ ...formData, bundleCount: val === "" ? null : parseInt(val) });
+                                            }}
                                             className="w-14 bg-surface border border-border-light rounded-lg px-2 py-1.5 text-sm text-foreground text-center focus:outline-none focus:border-accent/50 transition-all"
                                         />
                                         <span className="text-xs text-text-muted hidden sm:inline">total</span>
