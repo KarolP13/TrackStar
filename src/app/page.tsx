@@ -7,6 +7,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import SummaryCards from "@/components/SummaryCards";
 import PromoTable from "@/components/PromoTable";
 import PromoModal from "@/components/PromoModal";
+import ImportModal from "@/components/ImportModal";
 import { Promo, PromoFormData, SavedPromoter, SavedAccount, PromoterPreset } from "@/lib/types";
 import {
   subscribeToPromos, addPromo, updatePromo, deletePromo,
@@ -27,6 +28,7 @@ export default function DashboardPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingPromo, setEditingPromo] = useState<Promo | null>(null);
   const [isDuplicate, setIsDuplicate] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -93,6 +95,14 @@ export default function DashboardPage() {
     await bulkUpdateStatus(ids, status);
   };
 
+  const handleImportPromos = async (promos: Omit<Promo, "id">[]) => {
+    const { collection, addDoc } = await import("firebase/firestore");
+    const { db } = await import("@/lib/firebase");
+    for (const p of promos) {
+      await addDoc(collection(db, "promos"), p);
+    }
+  };
+
   const handleOpenNew = () => {
     setEditingPromo(null);
     setIsDuplicate(false);
@@ -122,6 +132,15 @@ export default function DashboardPage() {
             </p>
           </div>
           <div className="hidden sm:flex items-center gap-2">
+            <button
+              onClick={() => setImportOpen(true)}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border-light bg-surface hover:bg-surface-hover text-text-secondary text-sm font-medium transition-all"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+              </svg>
+              Import
+            </button>
             <button
               onClick={handleOpenNew}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-accent hover:bg-accent/90 text-white text-sm font-medium transition-all shadow-lg shadow-accent/20 hover:shadow-accent/30"
@@ -185,6 +204,14 @@ export default function DashboardPage() {
           pastPromotingNames={pastPromotingNames}
           promoterPresets={profile?.promoterPresets || {}}
           onSavePreset={handleSavePreset}
+        />
+
+        {/* Import Modal */}
+        <ImportModal
+          isOpen={importOpen}
+          onClose={() => setImportOpen(false)}
+          onImport={handleImportPromos}
+          userId={user?.uid || ""}
         />
 
         {/* Mobile FAB — Add Promo */}
