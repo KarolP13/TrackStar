@@ -504,7 +504,7 @@ export default function PromoTable({ promos, onEdit, onDelete, onDuplicate, onCa
 
             {/* Floating Action Bar (Select Mode) */}
             {selectMode && selectedIds.size > 0 && (
-                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-5 py-3 bg-surface/95 backdrop-blur-md border border-border-light rounded-2xl shadow-2xl animate-fade-in">
+                <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 bg-surface/95 backdrop-blur-md border border-border-light rounded-2xl shadow-2xl animate-fade-in">
                     <span className="text-sm text-foreground font-medium whitespace-nowrap">{selectedIds.size} selected</span>
                     <div className="w-px h-6 bg-border-light" />
                     <button disabled={bulkLoading} onClick={() => handleBulkAction("Paid")} className="px-3.5 py-1.5 rounded-lg bg-green-500/15 text-green-400 border border-green-500/20 text-xs font-medium hover:bg-green-500/25 transition-all disabled:opacity-50">Mark Paid</button>
