@@ -264,7 +264,12 @@ export default function PromoModal({
                 promoterName: p.promoterName,
                 count: p.bundleCount
             }))
-    )).map(s => JSON.parse(s) as { groupId: string, promoting: string, promoterName: string, count: number });
+    )).map(s => JSON.parse(s) as { groupId: string, promoting: string, promoterName: string, count: number })
+        .filter(bundle => {
+            if (editingPromo?.bundleGroupId === bundle.groupId) return true;
+            const currentCount = allPromos.filter(p => p.bundleGroupId === bundle.groupId && p.id !== editingPromo?.id).length;
+            return currentCount < bundle.count;
+        });
 
     if (!isOpen) return null;
 

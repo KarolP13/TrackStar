@@ -59,6 +59,7 @@ export default function PromoTable({ promos, onEdit,
     const [filterStatus, setFilterStatus] = useState<string>("All");
     const [filterAccount, setFilterAccount] = useState<string>("All");
     const [filterRecurring, setFilterRecurring] = useState<RecurringFilter>("all");
+    const [filterIsBundle, setFilterIsBundle] = useState<"all" | "bundle" | "non-bundle">("all");
     const [filterPromoter, setFilterPromoter] = useState<string>("All");
     const [filterArtist, setFilterArtist] = useState<string>("All");
     const [filterBundleGroupId, setFilterBundleGroupId] = useState<string | null>(null);
@@ -85,12 +86,13 @@ export default function PromoTable({ promos, onEdit,
     const uniquePromoters = useMemo(() => [...new Set(promos.map((p) => p.promoterName).filter(Boolean))].sort(), [promos]);
     const uniqueArtists = useMemo(() => [...new Set(promos.map((p) => p.promoting).filter(Boolean))].sort(), [promos]);
 
-    const hasActiveFilters = filterStatus !== "All" || filterAccount !== "All" || filterRecurring !== "all" || filterPromoter !== "All" || filterArtist !== "All" || filterPaymentMethod !== "All" || filterDateFrom || filterDateTo || filterBundleGroupId;
+    const hasActiveFilters = filterStatus !== "All" || filterAccount !== "All" || filterRecurring !== "all" || filterIsBundle !== "all" || filterPromoter !== "All" || filterArtist !== "All" || filterPaymentMethod !== "All" || filterDateFrom || filterDateTo || filterBundleGroupId;
 
     const clearAllFilters = () => {
         setFilterStatus("All");
         setFilterAccount("All");
         setFilterRecurring("all");
+        setFilterIsBundle("all");
         setFilterPromoter("All");
         setFilterArtist("All");
         setFilterPaymentMethod("All");
@@ -122,6 +124,12 @@ export default function PromoTable({ promos, onEdit,
             result = result.filter((p) => p.isRecurring);
         } else if (filterRecurring === "onetime") {
             result = result.filter((p) => !p.isRecurring);
+        }
+
+        if (filterIsBundle === "bundle") {
+            result = result.filter((p) => p.isBundle);
+        } else if (filterIsBundle === "non-bundle") {
+            result = result.filter((p) => !p.isBundle);
         }
 
         if (filterDateFrom) {
@@ -158,7 +166,7 @@ export default function PromoTable({ promos, onEdit,
         });
 
         return result;
-    }, [promos, search, filterStatus, filterAccount, filterPromoter, filterArtist, filterPaymentMethod, filterRecurring, filterDateFrom, filterDateTo, filterBundleGroupId, sortField, sortDir]);
+    }, [promos, search, filterStatus, filterAccount, filterPromoter, filterArtist, filterPaymentMethod, filterRecurring, filterIsBundle, filterDateFrom, filterDateTo, filterBundleGroupId, sortField, sortDir]);
 
     const handleSort = (field: SortField) => {
         if (sortField === field) {
@@ -288,7 +296,7 @@ export default function PromoTable({ promos, onEdit,
             {/* Expandable Filters */}
             {showFilters && (
                 <div className="p-4 bg-white/[0.02] border border-white/[0.06] rounded-lg animate-fade-in space-y-3">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                         <div>
                             <label className="block text-xs text-white/40 mb-1.5 uppercase tracking-wider">Status</label>
                             <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className={selectCls}>
@@ -317,6 +325,14 @@ export default function PromoTable({ promos, onEdit,
                             <select value={filterArtist} onChange={(e) => setFilterArtist(e.target.value)} className={selectCls}>
                                 <option value="All">All Artists</option>
                                 {uniqueArtists.map((a) => (<option key={a} value={a}>{a}</option>))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs text-white/40 mb-1.5 uppercase tracking-wider">Bundle Status</label>
+                            <select value={filterIsBundle} onChange={(e) => setFilterIsBundle(e.target.value as any)} className={selectCls}>
+                                <option value="all">All Posts</option>
+                                <option value="bundle">Bundle Posts Only</option>
+                                <option value="non-bundle">Non-Bundle Posts Only</option>
                             </select>
                         </div>
                     </div>
