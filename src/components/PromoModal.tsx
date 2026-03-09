@@ -44,6 +44,7 @@ const defaultFormData: PromoFormData = {
     comments: null,
     bookmarks: null,
     retweets: null,
+    isBundleComplete: false,
 };
 
 export default function PromoModal({
@@ -102,6 +103,7 @@ export default function PromoModal({
                 comments: editingPromo.comments ?? null,
                 bookmarks: editingPromo.bookmarks ?? null,
                 retweets: editingPromo.retweets ?? null,
+                isBundleComplete: editingPromo.isBundleComplete || false,
             });
             setShowRecurring(!isDuplicate && (editingPromo.isRecurring || false));
         } else {
@@ -267,7 +269,8 @@ export default function PromoModal({
                         promoting: p.promoting,
                         promoterName: p.promoterName,
                         count: p.bundleCount || 100,
-                        currentCount: 0
+                        currentCount: 0,
+                        isComplete: false
                     });
                 }
                 const bundle = map.get(groupId)!;
@@ -281,12 +284,18 @@ export default function PromoModal({
                 } else if (bundle.count === 100 && p.bundleCount) {
                     bundle.count = p.bundleCount;
                 }
+                // If any post in the bundle is marked as complete, the whole bundle is complete
+                if (p.isBundleComplete) {
+                    bundle.isComplete = true;
+                }
                 return map;
-            }, new Map<string, { groupId: string, promoting: string, promoterName: string, count: number, currentCount: number }>())
+            }, new Map<string, { groupId: string, promoting: string, promoterName: string, count: number, currentCount: number, isComplete: boolean }>())
             .values()
     ).filter(bundle => {
         if (editingPromo?.bundleGroupId === bundle.groupId) return true;
-        return bundle.currentCount < bundle.count;
+        // Do not auto-hide based on math (currentCount < count) because users may need to edit/add past full capacity if they made a mistake.
+        // Instead, rely strictly on manual archiving
+        return !bundle.isComplete;
     });
 
     if (!isOpen) return null;
@@ -636,6 +645,28 @@ export default function PromoModal({
                                                     />
                                                 </div>
                                             )}
+                                        </div>
+                                    )}
+                                    {formData.bundleGroupId && (
+                                        <div className="flex items-center gap-3 pt-2">
+                                            <label className="flex items-center gap-2 text-sm text-text-muted cursor-pointer hover:text-foreground transition-colors w-full">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={formData.isBundleComplete || false}
+                                                    onChange={(e) => {
+                                                        const isChecked = e.target.checked;
+                                                        setFormData({
+                                                            ...formData,
+                                                            isBundleComplete: isChecked
+                                                        });
+                                                    }}
+                                                    className="w-4 h-4 rounded border-border-light accent-accent cursor-pointer"
+                                                />
+                                                <span className="flex flex-col">
+                                                    <span>Mark Bundle Complete</span>
+                                                    <span className="text-xs opacity-60 font-light">Removes bundle from attach dropdown list</span>
+                                                </span>
+                                            </label>
                                         </div>
                                     )}
                                 </div>

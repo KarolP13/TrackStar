@@ -25,6 +25,7 @@ export interface Promo {
     bundleCount?: number | null; // number of posts in the bundle
     bundleIndex?: number | null; // which post out of the bundle count this is
     bundleGroupId?: string | null; // ID to link child posts to their parent bundle
+    isBundleComplete?: boolean; // Manually hide from dropdowns
     // Engagement metrics
     impressions?: number | null;
     likes?: number | null;
