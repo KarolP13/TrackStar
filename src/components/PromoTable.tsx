@@ -397,8 +397,8 @@ export default function PromoTable({ promos, onEdit, onDelete, onDuplicate, onCa
                                     <td className="px-4 py-3.5 text-center">
                                         {promo.tweetLink ? (
                                             <a href={promo.tweetLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center p-1.5 text-text-muted hover:text-accent hover:bg-surface-hover rounded-md transition-all" title="View Link" onClick={(e) => e.stopPropagation()}>
-                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.86-1.06a4.5 4.5 0 00-1.242-7.244l-4.5-4.5a4.5 4.5 0 00-6.364 6.364L4.49 8.813" />
+                                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                                                 </svg>
                                             </a>
                                         ) : (
@@ -486,8 +486,8 @@ export default function PromoTable({ promos, onEdit, onDelete, onDuplicate, onCa
                             </div>
                             {promo.tweetLink && (
                                 <a href={promo.tweetLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 mt-2.5 text-xs text-text-muted hover:text-accent transition-colors" onClick={(e) => e.stopPropagation()}>
-                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.86-1.06a4.5 4.5 0 00-1.242-7.244l-4.5-4.5a4.5 4.5 0 00-6.364 6.364L4.49 8.813" />
+                                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                                     </svg>
                                     View Link
                                 </a>
