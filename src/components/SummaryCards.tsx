@@ -64,10 +64,10 @@ export default function SummaryCards({ promos }: SummaryCardsProps) {
             {cards.map((card) => (
                 <div
                     key={card.label}
-                    className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3.5 sm:p-5 hover:bg-white/[0.05] transition-all duration-300 group"
+                    className="bg-surface border border-border-light rounded-xl p-3.5 sm:p-5 hover:bg-surface-hover transition-all duration-300 group"
                 >
                     <div className="flex items-center justify-between mb-2 sm:mb-3">
-                        <span className="text-[10px] sm:text-xs text-white/40 uppercase tracking-wider font-medium">
+                        <span className="text-[10px] sm:text-xs text-text-muted uppercase tracking-wider font-medium">
                             {card.label}
                         </span>
                         <div className={`${card.bg} ${card.color} p-1.5 sm:p-2 rounded-lg`}>

@@ -196,14 +196,15 @@ export default function PromoTable({ promos, onEdit, onDelete, onDuplicate, onCa
             <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
                     <thead>
-                        <tr className="border-b border-white/[0.06]">
-                            <th onClick={() => handleSort("promoDate")} className="text-left px-4 py-3 text-xs text-white/40 uppercase tracking-wider font-medium cursor-pointer hover:text-white/60 transition-colors">Date <SortIcon field="promoDate" /></th>
-                            <th onClick={() => handleSort("promoting")} className="text-left px-4 py-3 text-xs text-white/40 uppercase tracking-wider font-medium cursor-pointer hover:text-white/60 transition-colors">Promoting <SortIcon field="promoting" /></th>
-                            <th className="text-left px-4 py-3 text-xs text-white/40 uppercase tracking-wider font-medium">Account</th>
-                            <th className="text-left px-4 py-3 text-xs text-white/40 uppercase tracking-wider font-medium">Promoter</th>
-                            <th onClick={() => handleSort("paymentAmount")} className="text-left px-4 py-3 text-xs text-white/40 uppercase tracking-wider font-medium cursor-pointer hover:text-white/60 transition-colors">Amount <SortIcon field="paymentAmount" /></th>
-                            <th onClick={() => handleSort("paymentStatus")} className="text-left px-4 py-3 text-xs text-white/40 uppercase tracking-wider font-medium cursor-pointer hover:text-white/60 transition-colors">Status <SortIcon field="paymentStatus" /></th>
-                            <th className="text-right px-4 py-3 text-xs text-white/40 uppercase tracking-wider font-medium">Actions</th>
+                        <tr className="border-b border-border-light">
+                            <th onClick={() => handleSort("promoDate")} className="text-left px-4 py-3 text-xs text-text-muted uppercase tracking-wider font-medium cursor-pointer hover:text-text-secondary transition-colors">Date <SortIcon field="promoDate" /></th>
+                            <th onClick={() => handleSort("promoting")} className="text-left px-4 py-3 text-xs text-text-muted uppercase tracking-wider font-medium cursor-pointer hover:text-text-secondary transition-colors">Promoting <SortIcon field="promoting" /></th>
+                            <th className="text-left px-4 py-3 text-xs text-text-muted uppercase tracking-wider font-medium">Account</th>
+                            <th className="text-left px-4 py-3 text-xs text-text-muted uppercase tracking-wider font-medium">Promoter</th>
+                            <th onClick={() => handleSort("paymentAmount")} className="text-left px-4 py-3 text-xs text-text-muted uppercase tracking-wider font-medium cursor-pointer hover:text-text-secondary transition-colors">Amount <SortIcon field="paymentAmount" /></th>
+                            <th onClick={() => handleSort("paymentStatus")} className="text-left px-4 py-3 text-xs text-text-muted uppercase tracking-wider font-medium cursor-pointer hover:text-text-secondary transition-colors">Status <SortIcon field="paymentStatus" /></th>
+                            <th className="text-center px-4 py-3 text-xs text-text-muted uppercase tracking-wider font-medium">Proof</th>
+                            <th className="text-right px-4 py-3 text-xs text-text-muted uppercase tracking-wider font-medium">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -215,26 +216,37 @@ export default function PromoTable({ promos, onEdit, onDelete, onDuplicate, onCa
                             </tr>
                         ) : (
                             filteredAndSorted.map((promo) => (
-                                <tr key={promo.id} className="border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors cursor-pointer group" onClick={() => onEdit(promo)}>
-                                    <td className="px-4 py-3.5 text-sm text-white/70">
+                                <tr key={promo.id} className="border-b border-border-light hover:bg-surface-hover transition-colors cursor-pointer group" onClick={() => onEdit(promo)}>
+                                    <td className="px-4 py-3.5 text-sm text-text-secondary">
                                         {formatDate(promo.promoDate)}
                                         {promo.isRecurring && <RecurringIcon />}
                                     </td>
-                                    <td className="px-4 py-3.5 text-sm text-white font-medium">
+                                    <td className="px-4 py-3.5 text-sm text-foreground font-medium">
                                         <div className="flex items-center gap-2">
                                             {promo.promoting}
                                             {promo.isBundle && promo.bundleCount && (
-                                                <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-400 border border-purple-500/30">
+                                                <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
                                                     {promo.bundleCount}x
                                                 </span>
                                             )}
                                         </div>
                                     </td>
-                                    <td className="px-4 py-3.5 text-sm text-accent/80 font-mono">{promo.accountHandle}</td>
-                                    <td className="px-4 py-3.5 text-sm text-white/60">{promo.promoterName}</td>
-                                    <td className="px-4 py-3.5 text-sm text-white font-medium">${promo.paymentAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
+                                    <td className="px-4 py-3.5 text-sm text-accent font-mono">{promo.accountHandle}</td>
+                                    <td className="px-4 py-3.5 text-sm text-text-muted">{promo.promoterName}</td>
+                                    <td className="px-4 py-3.5 text-sm text-foreground font-medium">${promo.paymentAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
                                     <td className="px-4 py-3.5">
                                         <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium border ${getStatusColor(promo.paymentStatus)}`}>{promo.paymentStatus}</span>
+                                    </td>
+                                    <td className="px-4 py-3.5 text-center">
+                                        {promo.tweetLink ? (
+                                            <a href={promo.tweetLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center p-1.5 text-text-muted hover:text-accent hover:bg-surface-hover rounded-md transition-all" title="View Tweet" onClick={(e) => e.stopPropagation()}>
+                                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                                                </svg>
+                                            </a>
+                                        ) : (
+                                            <span className="text-text-muted opacity-50">—</span>
+                                        )}
                                     </td>
                                     <td className="px-4 py-3.5 text-right">
                                         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -272,45 +284,53 @@ export default function PromoTable({ promos, onEdit, onDelete, onDuplicate, onCa
             {/* Mobile Card View */}
             <div className="md:hidden space-y-3">
                 {filteredAndSorted.length === 0 ? (
-                    <div className="text-center py-12 text-white/30 text-sm">
+                    <div className="text-center py-12 text-text-muted text-sm">
                         {promos.length === 0 ? 'No promos yet. Tap "Add Promo" to get started.' : "No promos match your filters."}
                     </div>
                 ) : (
                     filteredAndSorted.map((promo) => (
-                        <div key={promo.id} onClick={() => onEdit(promo)} className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 active:bg-white/[0.06] transition-all cursor-pointer">
+                        <div key={promo.id} onClick={() => onEdit(promo)} className="bg-surface border border-border-light rounded-xl p-4 active:bg-surface-hover transition-all cursor-pointer">
                             <div className="flex items-start justify-between mb-2">
                                 <div>
                                     <div className="flex items-center gap-2 mb-0.5">
-                                        <p className="text-white font-medium">
+                                        <p className="text-foreground font-medium">
                                             {promo.promoting}
                                             {promo.isRecurring && <RecurringIcon />}
                                         </p>
                                         {promo.isBundle && promo.bundleCount && (
-                                            <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-400 border border-purple-500/30">
+                                            <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
                                                 {promo.bundleCount}x
                                             </span>
                                         )}
                                     </div>
-                                    <p className="text-accent/80 text-sm font-mono">{promo.accountHandle}</p>
+                                    <p className="text-accent text-sm font-mono">{promo.accountHandle}</p>
                                 </div>
                                 <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium border ${getStatusColor(promo.paymentStatus)}`}>{promo.paymentStatus}</span>
                             </div>
                             <div className="flex items-center justify-between text-sm">
-                                <span className="text-white/50">{formatDate(promo.promoDate)}</span>
-                                <span className="text-white font-medium">${promo.paymentAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                                <span className="text-text-secondary">{formatDate(promo.promoDate)}</span>
+                                <span className="text-foreground font-medium">${promo.paymentAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
                             </div>
                             <div className="flex items-center justify-between text-xs mt-1.5">
-                                <span className="text-white/40">{promo.promoterName}</span>
-                                <span className="text-white/40">{promo.paymentMethod}</span>
+                                <span className="text-text-muted">{promo.promoterName}</span>
+                                <span className="text-text-muted">{promo.paymentMethod}</span>
                             </div>
-                            {promo.notes && (<p className="text-xs text-white/30 mt-2 truncate">{promo.notes}</p>)}
-                            <div className="flex justify-end gap-3 mt-3 pt-2 border-t border-white/[0.06]">
-                                <button onClick={(e) => { e.stopPropagation(); onDuplicate(promo); }} className="text-xs text-accent/70 hover:text-accent transition-colors">Duplicate</button>
+                            {promo.tweetLink && (
+                                <a href={promo.tweetLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 mt-2.5 text-xs text-text-muted hover:text-accent transition-colors" onClick={(e) => e.stopPropagation()}>
+                                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                                    </svg>
+                                    View Proof
+                                </a>
+                            )}
+                            {promo.notes && (<p className="text-xs text-text-muted mt-2 truncate">{promo.notes}</p>)}
+                            <div className="flex justify-end gap-3 mt-3 pt-2 border-t border-border-light">
+                                <button onClick={(e) => { e.stopPropagation(); onDuplicate(promo); }} className="text-xs text-accent hover:text-accent-light transition-colors">Duplicate</button>
                                 {promo.isRecurring && promo.recurringGroupId && onCancelSeries && (
-                                    <button onClick={(e) => { e.stopPropagation(); if (confirm("Cancel all future pending promos in this series?")) onCancelSeries(promo.recurringGroupId!); }} className="text-xs text-amber-400/70 hover:text-amber-400 transition-colors">Cancel Series</button>
+                                    <button onClick={(e) => { e.stopPropagation(); if (confirm("Cancel all future pending promos in this series?")) onCancelSeries(promo.recurringGroupId!); }} className="text-xs text-amber-500 hover:text-amber-400 transition-colors">Cancel Series</button>
                                 )}
-                                <button onClick={(e) => { e.stopPropagation(); onEdit(promo); }} className="text-xs text-accent/70 hover:text-accent transition-colors">Edit</button>
-                                <button onClick={(e) => { e.stopPropagation(); if (promo.id && confirm("Delete this promo?")) { onDelete(promo.id); } }} className="text-xs text-red-400/70 hover:text-red-400 transition-colors">Delete</button>
+                                <button onClick={(e) => { e.stopPropagation(); onEdit(promo); }} className="text-xs text-accent hover:text-accent-light transition-colors">Edit</button>
+                                <button onClick={(e) => { e.stopPropagation(); if (promo.id && confirm("Delete this promo?")) { onDelete(promo.id); } }} className="text-xs text-red-500 hover:text-red-400 transition-colors">Delete</button>
                             </div>
                         </div>
                     ))

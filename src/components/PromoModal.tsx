@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Promo, PromoFormData, SavedPromoter, SavedAccount, PAYMENT_METHODS, PAYMENT_STATUSES, RECURRING_FREQUENCIES } from "@/lib/types";
+import { Promo, PromoFormData, SavedPromoter, SavedAccount, PAYMENT_METHODS, PAYMENT_STATUSES, RECURRING_FREQUENCIES, PromoDefaults } from "@/lib/types";
 import { addSavedPromoter, deleteSavedPromoter, addSavedAccount, deleteSavedAccount } from "@/lib/promos";
 
 interface PromoModalProps {
@@ -13,6 +13,7 @@ interface PromoModalProps {
     savedAccounts: SavedAccount[];
     userId: string;
     isDuplicate?: boolean;
+    promoDefaults?: PromoDefaults;
 }
 
 const defaultFormData: PromoFormData = {
@@ -44,6 +45,7 @@ export default function PromoModal({
     savedAccounts,
     userId,
     isDuplicate,
+    promoDefaults,
 }: PromoModalProps) {
     const [formData, setFormData] = useState<PromoFormData>({ ...defaultFormData });
     const [loading, setLoading] = useState(false);
@@ -81,7 +83,12 @@ export default function PromoModal({
             });
             setShowRecurring(!isDuplicate && (editingPromo.isRecurring || false));
         } else {
-            setFormData({ ...defaultFormData });
+            setFormData({
+                ...defaultFormData,
+                paymentMethod: promoDefaults?.paymentMethod || defaultFormData.paymentMethod,
+                accountHandle: promoDefaults?.accountHandle || defaultFormData.accountHandle,
+                promoterName: promoDefaults?.promoterName || defaultFormData.promoterName,
+            });
             setShowRecurring(false);
         }
         setError("");
@@ -95,6 +102,10 @@ export default function PromoModal({
         e.preventDefault();
         if (!formData.promoting.trim() || !formData.promoterName.trim() || !formData.accountHandle.trim()) {
             setError("Please fill in all required fields.");
+            return;
+        }
+        if (formData.tweetLink && !formData.tweetLink.startsWith("http")) {
+            setError("Tweet link must be a valid URL starting with http or https.");
             return;
         }
         setLoading(true);
@@ -183,15 +194,15 @@ export default function PromoModal({
 
             {/* Slide-over / Full-screen Panel */}
             <div className="fixed inset-0 md:inset-y-0 md:left-auto md:right-0 z-50 w-full md:max-w-lg animate-slide-in">
-                <div className="h-full bg-[#111111] md:border-l border-white/[0.06] shadow-2xl flex flex-col">
+                <div className="h-full bg-background md:border-l border-border-light shadow-2xl flex flex-col">
                     {/* Header */}
-                    <div className="flex items-center justify-between px-5 sm:px-6 py-4 sm:py-5 border-b border-white/[0.06] safe-area-top">
-                        <h2 className="text-lg font-semibold text-white">
+                    <div className="flex items-center justify-between px-5 sm:px-6 py-4 sm:py-5 border-b border-border-light safe-area-top">
+                        <h2 className="text-lg font-semibold text-foreground">
                             {modalTitle}
                         </h2>
                         <button
                             onClick={onClose}
-                            className="text-white/40 hover:text-white/70 transition-colors p-1"
+                            className="text-text-muted hover:text-text-secondary transition-colors p-1"
                         >
                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -212,7 +223,7 @@ export default function PromoModal({
 
                         {/* Promoting */}
                         <div>
-                            <label className="block text-xs text-white/40 mb-1.5 uppercase tracking-wider font-medium">
+                            <label className="block text-xs text-text-muted mb-1.5 uppercase tracking-wider font-medium">
                                 Promoting <span className="text-red-400">*</span>
                             </label>
                             <input
@@ -220,13 +231,13 @@ export default function PromoModal({
                                 value={formData.promoting}
                                 onChange={(e) => setFormData({ ...formData, promoting: e.target.value })}
                                 placeholder="e.g. Drake, Nike Campaign, New Album"
-                                className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-4 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 transition-all"
+                                className="w-full bg-surface border border-border-light rounded-lg px-4 py-2.5 text-sm text-foreground placeholder-text-muted focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 transition-all"
                             />
                         </div>
 
                         {/* Promoter */}
                         <div>
-                            <label className="block text-xs text-white/40 mb-1.5 uppercase tracking-wider font-medium">
+                            <label className="block text-xs text-text-muted mb-1.5 uppercase tracking-wider font-medium">
                                 Promoter <span className="text-red-400">*</span>
                             </label>
                             {savedPromoters.length > 0 ? (
@@ -235,35 +246,35 @@ export default function PromoModal({
                                         <select
                                             value={formData.promoterName}
                                             onChange={(e) => setFormData({ ...formData, promoterName: e.target.value })}
-                                            className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-accent/50 appearance-none cursor-pointer transition-all"
+                                            className="flex-1 bg-surface border border-border-light rounded-lg px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-accent/50 appearance-none cursor-pointer transition-all"
                                         >
                                             <option value="">Select a promoter...</option>
                                             {savedPromoters.map((p) => (
                                                 <option key={p.id} value={p.name}>{p.name}</option>
                                             ))}
                                         </select>
-                                        <button type="button" onClick={() => setShowAddPromoter(!showAddPromoter)} className="px-3 py-2.5 rounded-lg border border-white/[0.08] text-white/40 hover:text-accent hover:border-accent/30 transition-all" title="Add new promoter">
+                                        <button type="button" onClick={() => setShowAddPromoter(!showAddPromoter)} className="px-3 py-2.5 rounded-lg border border-border-light text-text-muted hover:text-accent hover:border-accent/30 transition-all" title="Add new promoter">
                                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                                         </button>
                                     </div>
                                     <div className="flex flex-wrap gap-1.5">
                                         {savedPromoters.map((p) => (
-                                            <span key={p.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] text-xs text-white/40">
+                                            <span key={p.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-surface border border-border-light text-xs text-text-muted">
                                                 {p.name}
-                                                <button type="button" onClick={() => handleDeletePromoter(p)} className="text-white/20 hover:text-red-400 transition-colors">×</button>
+                                                <button type="button" onClick={() => handleDeletePromoter(p)} className="text-text-muted opacity-50 hover:text-red-400 transition-colors">×</button>
                                             </span>
                                         ))}
                                     </div>
                                 </div>
                             ) : (
                                 <div className="space-y-2">
-                                    <input type="text" value={formData.promoterName} onChange={(e) => setFormData({ ...formData, promoterName: e.target.value })} placeholder="Who ran the promo?" className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-4 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 transition-all" />
+                                    <input type="text" value={formData.promoterName} onChange={(e) => setFormData({ ...formData, promoterName: e.target.value })} placeholder="Who ran the promo?" className="w-full bg-surface border border-border-light rounded-lg px-4 py-2.5 text-sm text-foreground placeholder-text-muted focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 transition-all" />
                                     <button type="button" onClick={() => setShowAddPromoter(true)} className="text-xs text-accent/60 hover:text-accent transition-colors">+ Save as a promoter for quick access</button>
                                 </div>
                             )}
                             {showAddPromoter && (
                                 <div className="flex gap-2 mt-2 animate-fade-in">
-                                    <input type="text" value={newPromoterName} onChange={(e) => setNewPromoterName(e.target.value)} placeholder="New promoter name" className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white placeholder-white/25 focus:outline-none focus:border-accent/50 transition-all" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddPromoter(); } }} />
+                                    <input type="text" value={newPromoterName} onChange={(e) => setNewPromoterName(e.target.value)} placeholder="New promoter name" className="flex-1 bg-surface border border-border-light rounded-lg px-3 py-2 text-sm text-foreground placeholder-text-muted focus:outline-none focus:border-accent/50 transition-all" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddPromoter(); } }} />
                                     <button type="button" onClick={handleAddPromoter} className="px-3 py-2 rounded-lg bg-accent/20 text-accent text-sm font-medium hover:bg-accent/30 transition-all">Save</button>
                                 </div>
                             )}
@@ -271,38 +282,38 @@ export default function PromoModal({
 
                         {/* Account Handle */}
                         <div>
-                            <label className="block text-xs text-white/40 mb-1.5 uppercase tracking-wider font-medium">
+                            <label className="block text-xs text-text-muted mb-1.5 uppercase tracking-wider font-medium">
                                 Account Handle <span className="text-red-400">*</span>
                             </label>
                             {savedAccounts.length > 0 ? (
                                 <div className="space-y-2">
                                     <div className="flex gap-2">
-                                        <select value={formData.accountHandle} onChange={(e) => setFormData({ ...formData, accountHandle: e.target.value })} className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-accent/50 appearance-none cursor-pointer transition-all font-mono">
+                                        <select value={formData.accountHandle} onChange={(e) => setFormData({ ...formData, accountHandle: e.target.value })} className="flex-1 bg-surface border border-border-light rounded-lg px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-accent/50 appearance-none cursor-pointer transition-all font-mono">
                                             <option value="">Select an account...</option>
                                             {savedAccounts.map((a) => (<option key={a.id} value={a.handle}>{a.handle}</option>))}
                                         </select>
-                                        <button type="button" onClick={() => setShowAddAccount(!showAddAccount)} className="px-3 py-2.5 rounded-lg border border-white/[0.08] text-white/40 hover:text-accent hover:border-accent/30 transition-all" title="Add new account">
+                                        <button type="button" onClick={() => setShowAddAccount(!showAddAccount)} className="px-3 py-2.5 rounded-lg border border-border-light text-text-muted hover:text-accent hover:border-accent/30 transition-all" title="Add new account">
                                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                                         </button>
                                     </div>
                                     <div className="flex flex-wrap gap-1.5">
                                         {savedAccounts.map((a) => (
-                                            <span key={a.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] text-xs text-white/40 font-mono">
+                                            <span key={a.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-surface border border-border-light text-xs text-text-muted font-mono">
                                                 {a.handle}
-                                                <button type="button" onClick={() => handleDeleteAccount(a)} className="text-white/20 hover:text-red-400 transition-colors">×</button>
+                                                <button type="button" onClick={() => handleDeleteAccount(a)} className="text-text-muted opacity-50 hover:text-red-400 transition-colors">×</button>
                                             </span>
                                         ))}
                                     </div>
                                 </div>
                             ) : (
                                 <div className="space-y-2">
-                                    <input type="text" value={formData.accountHandle} onChange={(e) => setFormData({ ...formData, accountHandle: e.target.value })} placeholder="e.g. @songsgohard" className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-4 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 transition-all font-mono" />
+                                    <input type="text" value={formData.accountHandle} onChange={(e) => setFormData({ ...formData, accountHandle: e.target.value })} placeholder="e.g. @songsgohard" className="w-full bg-surface border border-border-light rounded-lg px-4 py-2.5 text-sm text-foreground placeholder-text-muted focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 transition-all font-mono" />
                                     <button type="button" onClick={() => setShowAddAccount(true)} className="text-xs text-accent/60 hover:text-accent transition-colors">+ Save as an account for quick access</button>
                                 </div>
                             )}
                             {showAddAccount && (
                                 <div className="flex gap-2 mt-2 animate-fade-in">
-                                    <input type="text" value={newAccountHandle} onChange={(e) => setNewAccountHandle(e.target.value)} placeholder="e.g. @songsgohard" className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white placeholder-white/25 focus:outline-none focus:border-accent/50 transition-all font-mono" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddAccount(); } }} />
+                                    <input type="text" value={newAccountHandle} onChange={(e) => setNewAccountHandle(e.target.value)} placeholder="e.g. @songsgohard" className="flex-1 bg-surface border border-border-light rounded-lg px-3 py-2 text-sm text-foreground placeholder-text-muted focus:outline-none focus:border-accent/50 transition-all font-mono" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddAccount(); } }} />
                                     <button type="button" onClick={handleAddAccount} className="px-3 py-2 rounded-lg bg-accent/20 text-accent text-sm font-medium hover:bg-accent/30 transition-all">Save</button>
                                 </div>
                             )}
@@ -310,43 +321,43 @@ export default function PromoModal({
 
                         {/* Tweet Link */}
                         <div>
-                            <label className="block text-xs text-white/40 mb-1.5 uppercase tracking-wider font-medium">
-                                Tweet Link <span className="text-white/20">(optional)</span>
+                            <label className="block text-xs text-text-muted mb-1.5 uppercase tracking-wider font-medium">
+                                Tweet Link <span className="text-text-muted opacity-50">(optional)</span>
                             </label>
-                            <input type="url" value={formData.tweetLink} onChange={(e) => setFormData({ ...formData, tweetLink: e.target.value })} placeholder="https://x.com/..." className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-4 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 transition-all font-mono" />
+                            <input type="url" value={formData.tweetLink} onChange={(e) => setFormData({ ...formData, tweetLink: e.target.value })} placeholder="https://x.com/..." className="w-full bg-surface border border-border-light rounded-lg px-4 py-2.5 text-sm text-foreground placeholder-text-muted focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 transition-all font-mono" />
                         </div>
 
                         {/* Promo Date */}
                         <div>
-                            <label className="block text-xs text-white/40 mb-1.5 uppercase tracking-wider font-medium">Promo Date</label>
-                            <input type="date" value={formData.promoDate} onChange={(e) => setFormData({ ...formData, promoDate: e.target.value })} className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 transition-all" />
+                            <label className="block text-xs text-text-muted mb-1.5 uppercase tracking-wider font-medium">Promo Date</label>
+                            <input type="date" value={formData.promoDate} onChange={(e) => setFormData({ ...formData, promoDate: e.target.value })} className="w-full bg-surface border border-border-light rounded-lg px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 transition-all" />
                         </div>
 
                         {/* Payment Method + Amount */}
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-xs text-white/40 mb-1.5 uppercase tracking-wider font-medium">Payment Method</label>
-                                <select value={formData.paymentMethod} onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })} className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-accent/50 appearance-none cursor-pointer transition-all">
+                                <label className="block text-xs text-text-muted mb-1.5 uppercase tracking-wider font-medium">Payment Method</label>
+                                <select value={formData.paymentMethod} onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })} className="w-full bg-surface border border-border-light rounded-lg px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-accent/50 appearance-none cursor-pointer transition-all">
                                     {PAYMENT_METHODS.map((m) => (<option key={m} value={m}>{m}</option>))}
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-xs text-white/40 mb-1.5 uppercase tracking-wider font-medium">Amount ($)</label>
-                                <input type="number" min="0" step="0.01" value={formData.paymentAmount || ""} onChange={(e) => setFormData({ ...formData, paymentAmount: parseFloat(e.target.value) || 0 })} placeholder="0.00" className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-4 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 transition-all" />
+                                <label className="block text-xs text-text-muted mb-1.5 uppercase tracking-wider font-medium">Amount ($)</label>
+                                <input type="number" min="0" step="0.01" value={formData.paymentAmount || ""} onChange={(e) => setFormData({ ...formData, paymentAmount: parseFloat(e.target.value) || 0 })} placeholder="0.00" className="w-full bg-surface border border-border-light rounded-lg px-4 py-2.5 text-sm text-foreground placeholder-text-muted focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 transition-all" />
                             </div>
                         </div>
 
                         {/* Bundle Option */}
-                        <div className="flex items-center gap-3 px-4 py-3 bg-white/[0.02] border border-white/[0.06] rounded-xl">
+                        <div className="flex items-center gap-3 px-4 py-3 bg-surface border border-border-light rounded-xl">
                             <button
                                 type="button"
                                 onClick={() => {
                                     const next = !formData.isBundle;
                                     setFormData({ ...formData, isBundle: next, bundleCount: next ? 3 : null });
                                 }}
-                                className="flex items-center gap-2 text-sm text-white/60 hover:text-white/80 transition-colors"
+                                className="flex items-center gap-2 text-sm text-text-muted hover:text-text-secondary transition-colors"
                             >
-                                <div className={`w-10 h-5 rounded-full relative transition-colors ${formData.isBundle ? "bg-accent" : "bg-white/10"}`}>
+                                <div className={`w-10 h-5 rounded-full relative transition-colors ${formData.isBundle ? "bg-accent" : "bg-surface-hover"}`}>
                                     <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${formData.isBundle ? "left-5" : "left-0.5"}`} />
                                 </div>
                                 Bundle deal
@@ -359,23 +370,23 @@ export default function PromoModal({
                                         max="100"
                                         value={formData.bundleCount || 3}
                                         onChange={(e) => setFormData({ ...formData, bundleCount: parseInt(e.target.value) || 3 })}
-                                        className="w-16 bg-white/[0.06] border border-white/[0.08] rounded-lg px-2.5 py-1.5 text-sm text-white text-center focus:outline-none focus:border-accent/50 transition-all"
+                                        className="w-16 bg-surface border border-border-light rounded-lg px-2.5 py-1.5 text-sm text-foreground text-center focus:outline-none focus:border-accent/50 transition-all"
                                     />
-                                    <span className="text-xs text-white/40">posts</span>
+                                    <span className="text-xs text-text-muted">posts</span>
                                 </div>
                             )}
                         </div>
 
                         {/* Payment Status */}
                         <div>
-                            <label className="block text-xs text-white/40 mb-1.5 uppercase tracking-wider font-medium">Payment Status</label>
+                            <label className="block text-xs text-text-muted mb-1.5 uppercase tracking-wider font-medium">Payment Status</label>
                             <div className="flex gap-2">
                                 {PAYMENT_STATUSES.map((status) => {
                                     const isActive = formData.paymentStatus === status;
                                     const colorMap: Record<string, string> = {
-                                        Pending: isActive ? "bg-amber-500/20 border-amber-500/40 text-amber-400" : "border-white/[0.08] text-white/40 hover:text-white/60",
-                                        Paid: isActive ? "bg-green-500/20 border-green-500/40 text-green-400" : "border-white/[0.08] text-white/40 hover:text-white/60",
-                                        Overdue: isActive ? "bg-red-500/20 border-red-500/40 text-red-400" : "border-white/[0.08] text-white/40 hover:text-white/60",
+                                        Pending: isActive ? "bg-amber-500/20 border-amber-500/40 text-amber-400" : "border-border-light text-text-muted hover:text-text-muted",
+                                        Paid: isActive ? "bg-green-500/20 border-green-500/40 text-green-400" : "border-border-light text-text-muted hover:text-text-muted",
+                                        Overdue: isActive ? "bg-red-500/20 border-red-500/40 text-red-400" : "border-border-light text-text-muted hover:text-text-muted",
                                     };
                                     return (
                                         <button key={status} type="button" onClick={() => setFormData({ ...formData, paymentStatus: status as "Pending" | "Paid" | "Overdue" })} className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-all ${colorMap[status]}`}>
@@ -388,17 +399,17 @@ export default function PromoModal({
 
                         {/* Notes */}
                         <div>
-                            <label className="block text-xs text-white/40 mb-1.5 uppercase tracking-wider font-medium">Notes <span className="text-white/20">(optional)</span></label>
-                            <textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} placeholder="Any extra context..." rows={3} className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-4 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 transition-all resize-none" />
+                            <label className="block text-xs text-text-muted mb-1.5 uppercase tracking-wider font-medium">Notes <span className="text-text-muted opacity-50">(optional)</span></label>
+                            <textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} placeholder="Any extra context..." rows={3} className="w-full bg-surface border border-border-light rounded-lg px-4 py-2.5 text-sm text-foreground placeholder-text-muted focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 transition-all resize-none" />
                         </div>
 
                         {/* ── Recurring Section ──────────────────────── */}
                         {!editingPromo && !isDuplicate && (
-                            <div className="border border-white/[0.06] rounded-xl overflow-hidden">
+                            <div className="border border-border-light rounded-xl overflow-hidden">
                                 <button
                                     type="button"
                                     onClick={() => toggleRecurring(!showRecurring)}
-                                    className="w-full flex items-center justify-between px-4 py-3 text-sm text-white/60 hover:text-white/80 transition-colors"
+                                    className="w-full flex items-center justify-between px-4 py-3 text-sm text-text-muted hover:text-text-secondary transition-colors"
                                 >
                                     <div className="flex items-center gap-2">
                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -406,25 +417,25 @@ export default function PromoModal({
                                         </svg>
                                         Make this recurring
                                     </div>
-                                    <div className={`w-10 h-5 rounded-full relative transition-colors ${showRecurring ? "bg-accent" : "bg-white/10"}`}>
+                                    <div className={`w-10 h-5 rounded-full relative transition-colors ${showRecurring ? "bg-accent" : "bg-surface-hover"}`}>
                                         <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${showRecurring ? "left-5" : "left-0.5"}`} />
                                     </div>
                                 </button>
 
                                 {showRecurring && (
-                                    <div className="px-4 pb-4 space-y-3 animate-fade-in border-t border-white/[0.06]">
+                                    <div className="px-4 pb-4 space-y-3 animate-fade-in border-t border-border-light">
                                         <div className="pt-3">
-                                            <label className="block text-xs text-white/40 mb-1.5 uppercase tracking-wider font-medium">Frequency</label>
-                                            <select value={formData.recurringFrequency || "weekly"} onChange={(e) => setFormData({ ...formData, recurringFrequency: e.target.value as "weekly" | "biweekly" | "monthly" })} className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-accent/50 appearance-none cursor-pointer transition-all">
+                                            <label className="block text-xs text-text-muted mb-1.5 uppercase tracking-wider font-medium">Frequency</label>
+                                            <select value={formData.recurringFrequency || "weekly"} onChange={(e) => setFormData({ ...formData, recurringFrequency: e.target.value as "weekly" | "biweekly" | "monthly" })} className="w-full bg-surface border border-border-light rounded-lg px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-accent/50 appearance-none cursor-pointer transition-all">
                                                 {RECURRING_FREQUENCIES.map((f) => (<option key={f.value} value={f.value}>{f.label}</option>))}
                                             </select>
                                         </div>
                                         <div>
-                                            <label className="block text-xs text-white/40 mb-1.5 uppercase tracking-wider font-medium">Ends</label>
+                                            <label className="block text-xs text-text-muted mb-1.5 uppercase tracking-wider font-medium">Ends</label>
                                             <select value={formData.recurringEndType || "never"} onChange={(e) => {
                                                 const val = e.target.value as "never" | "after_count" | "until_date";
                                                 setFormData({ ...formData, recurringEndType: val, recurringEndValue: val === "after_count" ? 4 : null });
-                                            }} className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-accent/50 appearance-none cursor-pointer transition-all">
+                                            }} className="w-full bg-surface border border-border-light rounded-lg px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-accent/50 appearance-none cursor-pointer transition-all">
                                                 <option value="never">Never (runs for 3 months)</option>
                                                 <option value="after_count">After X occurrences</option>
                                                 <option value="until_date">Until specific date</option>
@@ -432,17 +443,17 @@ export default function PromoModal({
                                         </div>
                                         {formData.recurringEndType === "after_count" && (
                                             <div className="animate-fade-in">
-                                                <label className="block text-xs text-white/40 mb-1.5 uppercase tracking-wider font-medium">Number of occurrences</label>
-                                                <input type="number" min="1" max="52" value={formData.recurringEndValue || 4} onChange={(e) => setFormData({ ...formData, recurringEndValue: parseInt(e.target.value) || 4 })} className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-accent/50 transition-all" />
+                                                <label className="block text-xs text-text-muted mb-1.5 uppercase tracking-wider font-medium">Number of occurrences</label>
+                                                <input type="number" min="1" max="52" value={formData.recurringEndValue || 4} onChange={(e) => setFormData({ ...formData, recurringEndValue: parseInt(e.target.value) || 4 })} className="w-full bg-surface border border-border-light rounded-lg px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-accent/50 transition-all" />
                                             </div>
                                         )}
                                         {formData.recurringEndType === "until_date" && (
                                             <div className="animate-fade-in">
-                                                <label className="block text-xs text-white/40 mb-1.5 uppercase tracking-wider font-medium">End date</label>
-                                                <input type="date" value={formData.recurringEndValue ? new Date(formData.recurringEndValue).toISOString().split("T")[0] : ""} onChange={(e) => setFormData({ ...formData, recurringEndValue: new Date(e.target.value).getTime() })} className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-accent/50 transition-all" />
+                                                <label className="block text-xs text-text-muted mb-1.5 uppercase tracking-wider font-medium">End date</label>
+                                                <input type="date" value={formData.recurringEndValue ? new Date(formData.recurringEndValue).toISOString().split("T")[0] : ""} onChange={(e) => setFormData({ ...formData, recurringEndValue: new Date(e.target.value).getTime() })} className="w-full bg-surface border border-border-light rounded-lg px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-accent/50 transition-all" />
                                             </div>
                                         )}
-                                        <p className="text-xs text-white/25 mt-1">
+                                        <p className="text-xs text-text-muted mt-1">
                                             Future promos will be auto-generated with payment status set to Pending.
                                         </p>
                                     </div>
@@ -452,10 +463,10 @@ export default function PromoModal({
                     </form>
 
                     {/* Footer */}
-                    <div className="px-5 sm:px-6 py-4 border-t border-white/[0.06] flex items-center gap-3 safe-area-bottom">
-                        <button type="button" onClick={onClose} className="flex-1 py-3 sm:py-2.5 rounded-lg border border-white/[0.08] text-sm text-white/50 hover:text-white/70 hover:bg-white/[0.04] transition-all active:bg-white/[0.08]">Cancel</button>
-                        <button onClick={handleSubmit} disabled={loading} className="flex-1 py-3 sm:py-2.5 rounded-lg bg-accent hover:bg-accent/90 text-white text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 active:bg-accent/80">
-                            {loading && (<div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />)}
+                    <div className="px-5 sm:px-6 py-4 border-t border-border-light flex items-center gap-3 safe-area-bottom">
+                        <button type="button" onClick={onClose} className="flex-1 py-3 sm:py-2.5 rounded-lg border border-border-light text-sm text-text-muted hover:text-text-secondary hover:bg-surface transition-all active:bg-white/[0.08]">Cancel</button>
+                        <button onClick={handleSubmit} disabled={loading} className="flex-1 py-3 sm:py-2.5 rounded-lg bg-accent hover:bg-accent/90 text-foreground text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 active:bg-accent/80">
+                            {loading && (<div className="w-4 h-4 border-2 border-border-light border-t-foreground rounded-full animate-spin" />)}
                             {isDuplicate ? "Duplicate" : editingPromo ? "Save Changes" : formData.isRecurring ? "Create Series" : "Add Promo"}
                         </button>
                     </div>

@@ -58,3 +58,16 @@ export const RECURRING_FREQUENCIES = [
     { value: "biweekly", label: "Bi-weekly" },
     { value: "monthly", label: "Monthly" },
 ] as const;
+
+export interface PromoDefaults {
+    paymentMethod: string;
+    accountHandle: string;
+    promoterName: string;
+}
+
+export interface UserProfile {
+    themeMode: "dark" | "light";
+    accentColor: string;
+    displayName: string;
+    defaults: PromoDefaults;
+}

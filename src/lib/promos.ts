@@ -17,6 +17,12 @@ const PROMOS_COLLECTION = "promos";
 const PROMOTERS_COLLECTION = "savedPromoters";
 const ACCOUNTS_COLLECTION = "savedAccounts";
 
+// Helper to parse "YYYY-MM-DD" in local time to avoid timezone offset shifts
+function parseLocalDate(dateString: string): Date {
+    const [year, month, day] = dateString.split("-").map(Number);
+    return new Date(year, month - 1, day);
+}
+
 // ── Promo CRUD ────────────────────────────────────────────
 
 export function subscribeToPromos(
@@ -42,7 +48,7 @@ export async function addPromo(userId: string, data: PromoFormData) {
     const promoData = {
         ...data,
         userId,
-        promoDate: Timestamp.fromDate(new Date(data.promoDate)),
+        promoDate: Timestamp.fromDate(parseLocalDate(data.promoDate)),
         createdAt: Timestamp.now(),
     };
     return addDoc(collection(db, PROMOS_COLLECTION), promoData);
@@ -51,7 +57,7 @@ export async function addPromo(userId: string, data: PromoFormData) {
 export async function updatePromo(promoId: string, data: Partial<PromoFormData>) {
     const updateData: Record<string, unknown> = { ...data };
     if (data.promoDate) {
-        updateData.promoDate = Timestamp.fromDate(new Date(data.promoDate));
+        updateData.promoDate = Timestamp.fromDate(parseLocalDate(data.promoDate));
     }
     return updateDoc(doc(db, PROMOS_COLLECTION, promoId), updateData);
 }
@@ -106,7 +112,7 @@ export async function addRecurringPromo(userId: string, data: PromoFormData) {
     const parentData = {
         ...data,
         userId,
-        promoDate: Timestamp.fromDate(new Date(data.promoDate)),
+        promoDate: Timestamp.fromDate(parseLocalDate(data.promoDate)),
         createdAt: Timestamp.now(),
         isRecurring: true,
         isRecurringParent: true,
@@ -117,7 +123,7 @@ export async function addRecurringPromo(userId: string, data: PromoFormData) {
     // Generate child instances
     if (data.recurringFrequency && data.recurringEndType) {
         const futureDates = generateRecurringDates(
-            new Date(data.promoDate),
+            parseLocalDate(data.promoDate),
             data.recurringFrequency,
             data.recurringEndType,
             data.recurringEndValue ?? null

@@ -52,10 +52,10 @@ export default function DashboardLayout({
     }, [pathname]);
 
     return (
-        <div className="min-h-screen bg-[#0a0a0a] flex">
+        <div className="min-h-screen bg-background flex text-foreground">
             {/* Sidebar — Desktop */}
-            <aside className="hidden md:flex w-64 flex-col border-r border-white/[0.06] bg-[#0a0a0a]/80 backdrop-blur-xl fixed inset-y-0 left-0 z-30">
-                <div className="p-5 border-b border-white/[0.06]">
+            <aside className="hidden md:flex w-64 flex-col border-r border-border-light bg-background/80 backdrop-blur-xl fixed inset-y-0 left-0 z-30">
+                <div className="p-5 border-b border-border-light">
                     <Logo size="sm" />
                 </div>
                 <nav className="flex-1 p-3 space-y-1">
@@ -67,7 +67,7 @@ export default function DashboardLayout({
                                 href={item.href}
                                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-200 ${isActive
                                     ? "bg-accent/10 text-accent"
-                                    : "text-white/50 hover:text-white/80 hover:bg-white/[0.04]"
+                                    : "text-text-muted hover:text-text-secondary hover:bg-surface-hover"
                                     }`}
                             >
                                 {item.icon}
@@ -76,18 +76,18 @@ export default function DashboardLayout({
                         );
                     })}
                 </nav>
-                <div className="p-4 border-t border-white/[0.06]">
+                <div className="p-4 border-t border-border-light">
                     <div className="flex items-center gap-3 mb-3">
-                        <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center text-accent text-xs font-bold">
+                        <div className="w-8 h-8 rounded-full bg-accent-light flex items-center justify-center text-accent text-xs font-bold">
                             {user?.email?.[0]?.toUpperCase() || "U"}
                         </div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-xs text-white/70 truncate">{user?.email}</p>
+                            <p className="text-xs text-text-secondary truncate">{user?.email}</p>
                         </div>
                     </div>
                     <button
                         onClick={logout}
-                        className="w-full text-left text-xs text-white/40 hover:text-white/70 transition-colors px-2 py-1.5"
+                        className="w-full text-left text-xs text-text-muted hover:text-text-secondary transition-colors px-2 py-1.5"
                     >
                         Sign Out
                     </button>
@@ -95,12 +95,12 @@ export default function DashboardLayout({
             </aside>
 
             {/* Mobile header — compact top bar */}
-            <div className="md:hidden fixed top-0 left-0 right-0 z-30 bg-[#0a0a0a]/90 backdrop-blur-xl border-b border-white/[0.06] safe-area-top">
+            <div className="md:hidden fixed top-0 left-0 right-0 z-30 bg-background/90 backdrop-blur-xl border-b border-border-light safe-area-top">
                 <div className="flex items-center justify-between px-4 py-2.5">
                     <Logo size="sm" />
                     <button
                         onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                        className="text-white/60 hover:text-white p-2 -mr-2 active:bg-white/[0.06] rounded-lg transition-colors"
+                        className="text-text-secondary hover:text-foreground p-2 -mr-2 active:bg-surface-hover rounded-lg transition-colors"
                     >
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                             {mobileMenuOpen ? (
@@ -112,7 +112,7 @@ export default function DashboardLayout({
                     </button>
                 </div>
                 {mobileMenuOpen && (
-                    <nav className="px-4 pb-3 space-y-1 animate-fade-in border-t border-white/[0.04]">
+                    <nav className="px-4 pb-3 space-y-1 animate-fade-in border-t border-border-light bg-background">
                         {navItems.map((item) => {
                             const isActive = pathname === item.href;
                             return (
@@ -121,8 +121,8 @@ export default function DashboardLayout({
                                     href={item.href}
                                     onClick={() => setMobileMenuOpen(false)}
                                     className={`flex items-center gap-3 px-3 py-3 rounded-lg text-sm transition-all ${isActive
-                                        ? "bg-accent/10 text-accent"
-                                        : "text-white/50 active:bg-white/[0.06]"
+                                        ? "bg-accent-light text-accent"
+                                        : "text-text-muted active:bg-surface-hover"
                                         }`}
                                 >
                                     {item.icon}
@@ -130,11 +130,11 @@ export default function DashboardLayout({
                                 </Link>
                             );
                         })}
-                        <div className="flex items-center gap-3 px-3 py-2 mt-1 border-t border-white/[0.06]">
+                        <div className="flex items-center gap-3 px-3 py-2 mt-1 border-t border-border-light">
                             <div className="w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center text-accent text-[10px] font-bold flex-shrink-0">
                                 {user?.email?.[0]?.toUpperCase() || "U"}
                             </div>
-                            <span className="text-xs text-white/40 truncate flex-1">{user?.email}</span>
+                            <span className="text-xs text-text-muted truncate flex-1">{user?.email}</span>
                             <button
                                 onClick={logout}
                                 className="text-xs text-red-400/70 hover:text-red-400 transition-colors flex-shrink-0"
@@ -147,7 +147,7 @@ export default function DashboardLayout({
             </div>
 
             {/* Bottom Tab Bar — Mobile */}
-            <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-[#0a0a0a]/95 backdrop-blur-xl border-t border-white/[0.08] safe-area-bottom">
+            <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur-xl border-t border-border-light safe-area-bottom">
                 <div className="flex items-stretch">
                     {navItems.map((item) => {
                         const isActive = pathname === item.href;
@@ -157,7 +157,7 @@ export default function DashboardLayout({
                                 href={item.href}
                                 className={`flex-1 flex flex-col items-center gap-0.5 py-2 pt-2.5 text-[10px] font-medium transition-colors ${isActive
                                     ? "text-accent"
-                                    : "text-white/35 active:text-white/60"
+                                    : "text-text-muted active:text-text-secondary"
                                     }`}
                             >
                                 <div className={isActive ? "scale-110 transition-transform" : "transition-transform"}>
