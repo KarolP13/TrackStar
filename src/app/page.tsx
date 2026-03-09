@@ -22,6 +22,7 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const { profile, updateProfile } = useTheme();
   const [promos, setPromos] = useState<Promo[]>([]);
+  const [filterStatus, setFilterStatus] = useState<string>("All");
   const [savedPromoters, setSavedPromoters] = useState<SavedPromoter[]>([]);
   const [savedAccounts, setSavedAccounts] = useState<SavedAccount[]>([]);
   const [loading, setLoading] = useState(true);
@@ -173,7 +174,7 @@ export default function DashboardPage() {
           <>
             {/* Summary Cards */}
             <div className="mb-5 sm:mb-8">
-              <SummaryCards promos={promos} />
+              <SummaryCards promos={promos} onFilterStatus={setFilterStatus} currentFilter={filterStatus} />
             </div>
 
             {/* Promo Table */}
@@ -192,6 +193,8 @@ export default function DashboardPage() {
                   onCancelSeries={handleCancelSeries}
                   onBulkUpdateStatus={handleBulkUpdateStatus}
                   onLinkBundle={handleLinkBundle}
+                  filterStatus={filterStatus}
+                  setFilterStatus={setFilterStatus}
                 />
               </div>
             </div>

@@ -54,6 +54,9 @@ const COLUMN_ALIASES: Record<string, string> = {
     "page": "promoterName",
     "page name": "promoterName",
     "who": "promoterName",
+    "name": "promoterName",
+    "contact": "promoterName",
+    "to email address": "promoterName",
     // accountHandle
     "accounthandle": "accountHandle",
     "account handle": "accountHandle",
@@ -77,6 +80,8 @@ const COLUMN_ALIASES: Record<string, string> = {
     "cost": "paymentAmount",
     "rate": "paymentAmount",
     "$": "paymentAmount",
+    "gross": "paymentAmount",
+    "net": "paymentAmount",
     // paymentStatus
     "paymentstatus": "paymentStatus",
     "payment status": "paymentStatus",
@@ -111,15 +116,15 @@ function parseDate(value: unknown): Date | null {
 }
 
 function parseAmount(value: unknown): number {
-    if (typeof value === "number") return value;
+    if (typeof value === "number") return Math.abs(value);
     const str = String(value).replace(/[$,\s]/g, "");
     const n = parseFloat(str);
-    return isNaN(n) ? 0 : n;
+    return isNaN(n) ? 0 : Math.abs(n);
 }
 
 function parseStatus(value: unknown): "Pending" | "Paid" | "Overdue" {
     const s = String(value || "").trim().toLowerCase();
-    if (s === "paid") return "Paid";
+    if (s === "paid" || s === "completed") return "Paid";
     if (s === "overdue") return "Overdue";
     return "Pending";
 }
@@ -306,7 +311,7 @@ export default function ImportModal({ isOpen, onClose, onImport, userId }: Impor
                         {step === "upload" && (
                             <div className="space-y-4">
                                 <p className="text-sm text-text-secondary">
-                                    Upload an Excel (.xlsx, .xls) or CSV file with your promo data. We&apos;ll auto-detect the columns.
+                                    Upload an Excel (.xlsx, .xls) or CSV file (including PayPal Activity CSVs) with your promo data. We&apos;ll auto-detect the columns.
                                 </p>
                                 <div
                                     className="border-2 border-dashed border-border-light rounded-xl p-10 text-center cursor-pointer hover:border-accent/40 hover:bg-accent/5 transition-all"

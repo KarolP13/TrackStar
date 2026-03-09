@@ -307,10 +307,10 @@ export default function PromoModal({
 
             {/* Slide-over / Full-screen Panel */}
             <div className="fixed inset-0 z-50 pointer-events-none">
-                <div className="pointer-events-auto fixed inset-0 md:inset-auto md:top-6 md:right-6 w-full md:w-[480px] h-[100dvh] md:h-auto md:max-h-[85vh] md:rounded-2xl bg-background md:border border-border-light shadow-2xl flex flex-col overflow-hidden animate-slide-in">
+                <div className="pointer-events-auto absolute inset-0 md:inset-auto md:top-6 md:right-6 w-full md:w-[480px] h-[100dvh] md:h-auto md:max-h-[85vh] md:rounded-2xl bg-background md:border border-border-light shadow-2xl flex flex-col overflow-hidden animate-slide-in">
                     {/* Header */}
-                    <div className="relative flex items-center justify-center px-5 sm:px-6 py-5 sm:py-6 border-b border-border-light safe-area-top">
-                        <h2 className="text-lg font-semibold text-foreground text-center">
+                    <div className="relative flex items-center justify-center px-5 sm:px-6 h-[72px] sm:h-[80px] border-b border-border-light shrink-0 safe-area-top">
+                        <h2 className="absolute left-1/2 -translate-x-1/2 text-lg font-semibold text-foreground text-center whitespace-nowrap">
                             {modalTitle}
                         </h2>
                         <button
@@ -728,7 +728,7 @@ export default function PromoModal({
                     </form>
 
                     {/* Footer */}
-                    <div className="px-5 sm:px-6 py-4 border-t border-border-light flex items-center gap-3 safe-area-bottom">
+                    <div className="px-5 sm:px-6 py-4 border-t border-border-light flex items-center gap-3 shrink-0 safe-area-bottom pb-8 sm:pb-4 bg-background">
                         <button type="button" onClick={onClose} className="flex-1 py-3 sm:py-2.5 rounded-lg border border-border-light text-sm text-text-muted hover:text-text-secondary hover:bg-surface transition-all active:bg-white/[0.08]">Cancel</button>
                         <button onClick={handleSubmit} disabled={loading} className="flex-1 py-3 sm:py-2.5 rounded-lg bg-accent hover:bg-accent/90 text-foreground text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 active:bg-accent/80">
                             {loading && (<div className="w-4 h-4 border-2 border-border-light border-t-foreground rounded-full animate-spin" />)}

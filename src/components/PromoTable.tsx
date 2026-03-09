@@ -13,6 +13,8 @@ interface PromoTableProps {
     onCancelSeries?: (groupId: string) => Promise<void>;
     onBulkUpdateStatus?: (ids: string[], status: string) => Promise<void>;
     onLinkBundle?: (ids: string[]) => Promise<void>;
+    filterStatus: string;
+    setFilterStatus: (status: string) => void;
 }
 
 type SortField = "promoDate" | "promoting" | "paymentAmount" | "paymentStatus";
@@ -54,9 +56,10 @@ export default function PromoTable({ promos, onEdit,
     onCancelSeries,
     onBulkUpdateStatus,
     onLinkBundle,
+    filterStatus,
+    setFilterStatus,
 }: PromoTableProps) {
     const [search, setSearch] = useState("");
-    const [filterStatus, setFilterStatus] = useState<string>("All");
     const [filterAccount, setFilterAccount] = useState<string>("All");
     const [filterRecurring, setFilterRecurring] = useState<RecurringFilter>("all");
     const [filterIsBundle, setFilterIsBundle] = useState<"all" | "bundle" | "non-bundle">("all");
