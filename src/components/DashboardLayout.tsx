@@ -76,7 +76,8 @@ export default function DashboardLayout({
                         );
                     })}
                 </nav>
-                <div className="p-4 border-t border-border-light">
+                <div id="sidebar-actions" className="px-3" />
+                <div className="p-4 border-t border-border-light mt-auto">
                     <div className="flex items-center gap-3 mb-3">
                         <div className="w-8 h-8 rounded-full bg-accent-light flex items-center justify-center text-accent text-xs font-bold">
                             {user?.email?.[0]?.toUpperCase() || "U"}
