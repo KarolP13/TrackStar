@@ -225,8 +225,8 @@ export default function PromoModal({
             />
 
             {/* Slide-over / Full-screen Panel */}
-            <div className="fixed inset-0 z-50 flex items-end md:items-center md:justify-end animate-slide-in">
-                <div className="w-full md:max-w-lg h-[100dvh] md:h-auto md:max-h-[90vh] md:my-4 md:mr-4 md:rounded-2xl bg-background md:border border-border-light shadow-2xl flex flex-col overflow-hidden">
+            <div className="fixed inset-0 z-50 pointer-events-none">
+                <div className="pointer-events-auto fixed inset-0 md:inset-auto md:top-6 md:right-6 w-full md:w-[480px] h-[100dvh] md:h-auto md:max-h-[85vh] md:rounded-2xl bg-background md:border border-border-light shadow-2xl flex flex-col overflow-hidden animate-slide-in">
                     {/* Header */}
                     <div className="flex items-center justify-between px-5 sm:px-6 py-4 sm:py-5 border-b border-border-light safe-area-top">
                         <h2 className="text-lg font-semibold text-foreground">
