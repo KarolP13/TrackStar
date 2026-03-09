@@ -306,7 +306,6 @@ export default function PromoModal({
                                 <div className="absolute inset-0 bg-surface rounded-lg pointer-events-none z-0"></div>
                                 <input
                                     type="text"
-                                    list="promoting-suggestions"
                                     value={formData.promoting}
                                     onChange={handlePromotingChange}
                                     onKeyDown={handlePromotingKeyDown}
@@ -322,11 +321,6 @@ export default function PromoModal({
                                     </div>
                                 )}
                             </div>
-                            <datalist id="promoting-suggestions">
-                                {pastPromotingNames.map((name) => (
-                                    <option key={name} value={name} />
-                                ))}
-                            </datalist>
                         </div>
 
                         {/* Promoter */}
