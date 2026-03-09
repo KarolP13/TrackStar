@@ -551,10 +551,16 @@ export default function PromoModal({
                                                     setFormData({ ...formData, bundleGroupId: null });
                                                 } else {
                                                     const bundle = availableBundles.find(b => b.groupId === val);
+                                                    const bundlePromos = allPromos.filter(p => p.bundleGroupId === val && p.id !== editingPromo?.id);
+                                                    const maxIndex = bundlePromos.reduce((max, p) => Math.max(max, p.bundleIndex || 0), 0);
+                                                    const nextIndex = bundlePromos.length === 0 ? 1 : maxIndex + 1;
+                                                    const finalNextIndex = Math.min(nextIndex, bundle?.count || formData.bundleCount || 100);
+
                                                     setFormData({
                                                         ...formData,
                                                         bundleGroupId: val,
                                                         bundleCount: bundle?.count || formData.bundleCount,
+                                                        bundleIndex: finalNextIndex,
                                                         promoting: bundle?.promoting || formData.promoting,
                                                         promoterName: bundle?.promoterName || formData.promoterName,
                                                     });

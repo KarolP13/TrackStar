@@ -56,6 +56,11 @@ export default function DashboardPage() {
   const handleSave = async (data: PromoFormData) => {
     if (!user) return;
 
+    // Generate a group ID if this is a new bundle so future posts can attach to it
+    if (data.isBundle && !data.bundleGroupId) {
+      data.bundleGroupId = crypto.randomUUID();
+    }
+
     if (isDuplicate) {
       // Duplicate = always create a new one-time promo
       const { isRecurring, recurringFrequency, recurringEndType, recurringEndValue, recurringGroupId, isRecurringParent, ...cleanData } = data;
