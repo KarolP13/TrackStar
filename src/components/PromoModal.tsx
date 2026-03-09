@@ -286,14 +286,13 @@ export default function PromoModal({
             <div className="fixed inset-0 z-50 pointer-events-none">
                 <div className="pointer-events-auto fixed inset-0 md:inset-auto md:top-6 md:right-6 w-full md:w-[480px] h-[100dvh] md:h-auto md:max-h-[85vh] md:rounded-2xl bg-background md:border border-border-light shadow-2xl flex flex-col overflow-hidden animate-slide-in">
                     {/* Header */}
-                    <div className="flex items-center justify-between px-5 sm:px-6 py-5 sm:py-6 border-b border-border-light safe-area-top">
-                        <div className="w-8"></div> {/* Spacer for centering */}
+                    <div className="relative flex items-center justify-center px-5 sm:px-6 py-5 sm:py-6 border-b border-border-light safe-area-top">
                         <h2 className="text-lg font-semibold text-foreground text-center">
                             {modalTitle}
                         </h2>
                         <button
                             onClick={onClose}
-                            className="text-text-muted hover:text-text-secondary transition-colors p-1"
+                            className="absolute right-5 sm:right-6 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary transition-colors p-1 flex items-center justify-center"
                         >
                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
