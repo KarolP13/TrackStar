@@ -12,7 +12,7 @@ import {
     Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 
-type DateRange = "7d" | "30d" | "90d" | "all";
+type DateRange = "7d" | "this_month" | "last_month" | "all";
 type TimeView = "daily" | "weekly" | "monthly";
 type LeaderboardSort = "revenue" | "count" | "avg" | "pct";
 
@@ -35,13 +35,23 @@ const STATUS_COLORS: Record<string, string> = {
     Overdue: "#ef4444",
 };
 
-function getDateRangeStart(range: DateRange): Date | null {
-    if (range === "all") return null;
+function getDateRangeBounds(range: DateRange): { start: Date | null; end: Date | null } {
+    if (range === "all") return { start: null, end: null };
     const now = new Date();
-    const days = range === "7d" ? 7 : range === "30d" ? 30 : 90;
-    now.setDate(now.getDate() - days);
-    now.setHours(0, 0, 0, 0);
-    return now;
+    if (range === "this_month") {
+        const start = new Date(now.getFullYear(), now.getMonth(), 1);
+        return { start, end: null };
+    }
+    if (range === "last_month") {
+        const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+        return { start, end };
+    }
+    const days = 7; // For 7d
+    const start = new Date(now);
+    start.setDate(start.getDate() - days);
+    start.setHours(0, 0, 0, 0);
+    return { start, end: null };
 }
 
 function getWeekKey(date: Date): string {
@@ -109,7 +119,7 @@ export default function AnalyticsPage() {
     const { user } = useAuth();
     const [promos, setPromos] = useState<Promo[]>([]);
     const [loading, setLoading] = useState(true);
-    const [dateRange, setDateRange] = useState<DateRange>("30d");
+    const [dateRange, setDateRange] = useState<DateRange>("this_month");
     const [timeView, setTimeView] = useState<TimeView>("weekly");
     const [leaderboardSort, setLeaderboardSort] = useState<LeaderboardSort>("revenue");
     const [leaderboardDir, setLeaderboardDir] = useState<"asc" | "desc">("desc");
@@ -132,9 +142,13 @@ export default function AnalyticsPage() {
 
     // Filter promos by date range + dropdown filters
     const filteredPromos = useMemo(() => {
-        const start = getDateRangeStart(dateRange);
+        const bounds = getDateRangeBounds(dateRange);
         return promos.filter((p) => {
-            if (start && p.promoDate?.toDate() < start) return false;
+            const date = p.promoDate?.toDate();
+            if (date) {
+                if (bounds.start && date < bounds.start) return false;
+                if (bounds.end && date > bounds.end) return false;
+            }
             if (filterPromoter !== "All" && p.promoterName !== filterPromoter) return false;
             if (filterAccount !== "All" && p.accountHandle !== filterAccount) return false;
             return true;
@@ -150,7 +164,7 @@ export default function AnalyticsPage() {
 
     // ── Summary Stats ──────────────────────────
     const summaryStats = useMemo(() => {
-        const totalPromosCount = filteredPromos.reduce((sum, p) => sum + (p.isBundle && p.bundleCount ? p.bundleCount : 1), 0);
+        const totalPromosCount = filteredPromos.length;
         const totalRevenue = filteredPromos.reduce((sum, p) => sum + p.paymentAmount, 0);
         const avgValue = totalPromosCount > 0 ? totalRevenue / totalPromosCount : 0;
 
@@ -230,7 +244,7 @@ export default function AnalyticsPage() {
             const date = p.promoDate?.toDate();
             if (!date) return;
             const key = timeView === "daily" ? getDayKey(date) : timeView === "weekly" ? getWeekKey(date) : getMonthKey(date);
-            buckets[key] = (buckets[key] || 0) + (p.isBundle && p.bundleCount ? p.bundleCount : 1);
+            buckets[key] = (buckets[key] || 0) + 1;
         });
         return Object.entries(buckets).map(([name, count]) => ({ name, count })).reverse();
     }, [filteredPromos, timeView]);
@@ -283,7 +297,7 @@ export default function AnalyticsPage() {
         filteredPromos.forEach((p) => {
             if (!dataMap[p.promoterName]) dataMap[p.promoterName] = { count: 0, revenue: 0, methods: {}, impressions: 0, likes: 0 };
             const d = dataMap[p.promoterName];
-            d.count += p.isBundle && p.bundleCount ? p.bundleCount : 1;
+            d.count += 1;
             d.revenue += p.paymentAmount;
             d.methods[p.paymentMethod] = (d.methods[p.paymentMethod] || 0) + 1;
             d.impressions += p.impressions || 0;
@@ -317,8 +331,8 @@ export default function AnalyticsPage() {
 
     const dateRangeOptions: { value: DateRange; label: string }[] = [
         { value: "7d", label: "7 Days" },
-        { value: "30d", label: "30 Days" },
-        { value: "90d", label: "90 Days" },
+        { value: "this_month", label: "This Month" },
+        { value: "last_month", label: "Last Month" },
         { value: "all", label: "All Time" },
     ];
 

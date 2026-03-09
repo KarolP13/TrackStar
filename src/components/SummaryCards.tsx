@@ -9,10 +9,10 @@ interface SummaryCardsProps {
 }
 
 export default function SummaryCards({ promos, onFilterStatus, currentFilter }: SummaryCardsProps) {
-    const totalPromos = promos.reduce((sum, p) => sum + (p.isBundle && p.bundleCount ? p.bundleCount : 1), 0);
+    const totalPromos = promos.length;
     const totalRevenue = promos.reduce((sum, p) => sum + p.paymentAmount, 0);
-    const pendingCount = promos.filter((p) => p.paymentStatus === "Pending").reduce((sum, p) => sum + (p.isBundle && p.bundleCount ? p.bundleCount : 1), 0);
-    const paidCount = promos.filter((p) => p.paymentStatus === "Paid").reduce((sum, p) => sum + (p.isBundle && p.bundleCount ? p.bundleCount : 1), 0);
+    const pendingCount = promos.filter((p) => p.paymentStatus === "Pending").length;
+    const paidCount = promos.filter((p) => p.paymentStatus === "Paid").length;
 
     const cards = [
         {
