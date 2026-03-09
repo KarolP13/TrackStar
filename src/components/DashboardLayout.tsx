@@ -56,7 +56,7 @@ export default function DashboardLayout({
             {/* Sidebar — Desktop */}
             <aside className="hidden md:flex w-64 flex-col border-r border-border-light bg-background/80 backdrop-blur-xl fixed inset-y-0 left-0 z-30">
                 <div className="p-5 border-b border-border-light">
-                    <Logo size="sm" />
+                    <Link href="/"><Logo size="sm" /></Link>
                 </div>
                 <nav className="flex-1 p-3 space-y-1">
                     {navItems.map((item) => {
@@ -98,7 +98,7 @@ export default function DashboardLayout({
             {/* Mobile header — compact top bar */}
             <div className="md:hidden fixed top-0 left-0 right-0 z-30 bg-background/90 backdrop-blur-xl border-b border-border-light safe-area-top">
                 <div className="flex items-center justify-between px-4 py-2.5">
-                    <Logo size="sm" />
+                    <Link href="/"><Logo size="sm" /></Link>
                     <button
                         onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                         className="text-text-secondary hover:text-foreground p-2 -mr-2 active:bg-surface-hover rounded-lg transition-colors"
