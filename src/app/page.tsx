@@ -7,8 +7,12 @@ import DashboardLayout from "@/components/DashboardLayout";
 import SummaryCards from "@/components/SummaryCards";
 import PromoTable from "@/components/PromoTable";
 import PromoModal from "@/components/PromoModal";
-import ImportModal from "@/components/ImportModal";
+import dynamic from "next/dynamic";
 import { Promo, PromoFormData, SavedPromoter, SavedAccount, PromoterPreset } from "@/lib/types";
+
+const ImportModal = dynamic(() => import("@/components/ImportModal"), {
+  ssr: false,
+});
 import {
   subscribeToPromos, addPromo, updatePromo, deletePromo,
   subscribeToSavedPromoters, subscribeToSavedAccounts,
