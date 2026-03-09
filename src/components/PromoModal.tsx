@@ -38,6 +38,11 @@ const defaultFormData: PromoFormData = {
     isBundle: false,
     bundleCount: null,
     bundleIndex: null,
+    impressions: null,
+    likes: null,
+    comments: null,
+    bookmarks: null,
+    retweets: null,
 };
 
 export default function PromoModal({
@@ -89,6 +94,11 @@ export default function PromoModal({
                 isBundle: editingPromo.isBundle || false,
                 bundleCount: editingPromo.bundleCount || null,
                 bundleIndex: editingPromo.bundleIndex || null,
+                impressions: editingPromo.impressions ?? null,
+                likes: editingPromo.likes ?? null,
+                comments: editingPromo.comments ?? null,
+                bookmarks: editingPromo.bookmarks ?? null,
+                retweets: editingPromo.retweets ?? null,
             });
             setShowRecurring(!isDuplicate && (editingPromo.isRecurring || false));
         } else {
@@ -357,12 +367,34 @@ export default function PromoModal({
                             )}
                         </div>
 
-                        {/* Tweet Link */}
+                        {/* Link */}
                         <div>
                             <label className="block text-xs text-text-muted mb-1.5 uppercase tracking-wider font-medium">
-                                Tweet Link <span className="text-text-muted opacity-50">(optional)</span>
+                                Link <span className="text-text-muted opacity-50">(optional)</span>
                             </label>
                             <input type="url" value={formData.tweetLink} onChange={(e) => setFormData({ ...formData, tweetLink: e.target.value })} placeholder="https://x.com/..." className="w-full bg-surface border border-border-light rounded-lg px-4 py-2.5 text-sm text-foreground placeholder-text-muted focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 transition-all font-mono" />
+                        </div>
+
+                        {/* Engagement Metrics */}
+                        <div>
+                            <label className="block text-xs text-text-muted mb-2 uppercase tracking-wider font-medium">
+                                Engagement Metrics <span className="text-text-muted opacity-50">(optional)</span>
+                            </label>
+                            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                                {(["impressions", "likes", "comments", "bookmarks", "retweets"] as const).map((metric) => (
+                                    <div key={metric} className="flex flex-col gap-1">
+                                        <span className="text-[10px] text-text-muted capitalize text-center">{metric === "retweets" ? "Reposts" : metric.charAt(0).toUpperCase() + metric.slice(1)}</span>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            value={formData[metric] ?? ""}
+                                            onChange={(e) => setFormData({ ...formData, [metric]: e.target.value === "" ? null : parseInt(e.target.value) || 0 })}
+                                            placeholder="—"
+                                            className="w-full bg-surface border border-border-light rounded-lg px-2 py-2 text-sm text-foreground text-center focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 transition-all placeholder-text-muted"
+                                        />
+                                    </div>
+                                ))}
+                            </div>
                         </div>
 
                         {/* Promo Date */}

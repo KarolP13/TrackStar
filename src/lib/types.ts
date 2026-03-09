@@ -24,6 +24,12 @@ export interface Promo {
     isBundle?: boolean;
     bundleCount?: number | null; // number of posts in the bundle
     bundleIndex?: number | null; // which post out of the bundle count this is
+    // Engagement metrics
+    impressions?: number | null;
+    likes?: number | null;
+    comments?: number | null;
+    bookmarks?: number | null;
+    retweets?: number | null;
 }
 
 export type PromoFormData = Omit<Promo, "id" | "userId" | "createdAt" | "promoDate"> & {

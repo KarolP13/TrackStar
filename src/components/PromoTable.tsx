@@ -355,7 +355,7 @@ export default function PromoTable({ promos, onEdit, onDelete, onDuplicate, onCa
                             <th className="text-left px-4 py-3 text-xs text-text-muted uppercase tracking-wider font-medium">Promoter</th>
                             <th onClick={() => handleSort("paymentAmount")} className="text-left px-4 py-3 text-xs text-text-muted uppercase tracking-wider font-medium cursor-pointer hover:text-text-secondary transition-colors">Amount <SortIcon field="paymentAmount" /></th>
                             <th onClick={() => handleSort("paymentStatus")} className="text-left px-4 py-3 text-xs text-text-muted uppercase tracking-wider font-medium cursor-pointer hover:text-text-secondary transition-colors">Status <SortIcon field="paymentStatus" /></th>
-                            <th className="text-center px-4 py-3 text-xs text-text-muted uppercase tracking-wider font-medium">Proof</th>
+                            <th className="text-center px-4 py-3 text-xs text-text-muted uppercase tracking-wider font-medium">Link</th>
                             <th className="text-right px-4 py-3 text-xs text-text-muted uppercase tracking-wider font-medium">Actions</th>
                         </tr>
                     </thead>
@@ -396,13 +396,20 @@ export default function PromoTable({ promos, onEdit, onDelete, onDuplicate, onCa
                                     </td>
                                     <td className="px-4 py-3.5 text-center">
                                         {promo.tweetLink ? (
-                                            <a href={promo.tweetLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center p-1.5 text-text-muted hover:text-accent hover:bg-surface-hover rounded-md transition-all" title="View Tweet" onClick={(e) => e.stopPropagation()}>
-                                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                                            <a href={promo.tweetLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center p-1.5 text-text-muted hover:text-accent hover:bg-surface-hover rounded-md transition-all" title="View Link" onClick={(e) => e.stopPropagation()}>
+                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.86-1.06a4.5 4.5 0 00-1.242-7.244l-4.5-4.5a4.5 4.5 0 00-6.364 6.364L4.49 8.813" />
                                                 </svg>
                                             </a>
                                         ) : (
                                             <span className="text-text-muted opacity-50">—</span>
+                                        )}
+                                        {(promo.impressions || promo.likes || promo.comments || promo.bookmarks || promo.retweets) && (
+                                            <div className="flex items-center justify-center gap-2 mt-1 text-[10px] text-text-muted">
+                                                {promo.impressions != null && <span title="Impressions">{(promo.impressions >= 1000 ? `${(promo.impressions / 1000).toFixed(1)}K` : promo.impressions)} imp</span>}
+                                                {promo.likes != null && <span title="Likes">❤️ {promo.likes}</span>}
+                                                {promo.retweets != null && <span title="Reposts">🔁 {promo.retweets}</span>}
+                                            </div>
                                         )}
                                     </td>
                                     <td className="px-4 py-3.5 text-right">
@@ -479,11 +486,20 @@ export default function PromoTable({ promos, onEdit, onDelete, onDuplicate, onCa
                             </div>
                             {promo.tweetLink && (
                                 <a href={promo.tweetLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 mt-2.5 text-xs text-text-muted hover:text-accent transition-colors" onClick={(e) => e.stopPropagation()}>
-                                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
-                                        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.86-1.06a4.5 4.5 0 00-1.242-7.244l-4.5-4.5a4.5 4.5 0 00-6.364 6.364L4.49 8.813" />
                                     </svg>
-                                    View Proof
+                                    View Link
                                 </a>
+                            )}
+                            {(promo.impressions || promo.likes || promo.comments || promo.bookmarks || promo.retweets) && (
+                                <div className="flex items-center gap-3 mt-2 text-[11px] text-text-muted">
+                                    {promo.impressions != null && <span>{(promo.impressions >= 1000 ? `${(promo.impressions / 1000).toFixed(1)}K` : promo.impressions)} imp</span>}
+                                    {promo.likes != null && <span>❤️ {promo.likes}</span>}
+                                    {promo.comments != null && <span>💬 {promo.comments}</span>}
+                                    {promo.bookmarks != null && <span>🔖 {promo.bookmarks}</span>}
+                                    {promo.retweets != null && <span>🔁 {promo.retweets}</span>}
+                                </div>
                             )}
                             {promo.notes && (<p className="text-xs text-text-muted mt-2 truncate">{promo.notes}</p>)}
                             {!selectMode && (
