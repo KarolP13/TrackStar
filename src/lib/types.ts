@@ -66,9 +66,15 @@ export interface PromoDefaults {
     promoterName: string;
 }
 
+export interface PromoterPreset {
+    paymentMethod: string;
+    amount: number | null;
+}
+
 export interface UserProfile {
     themeMode: "dark" | "light";
     accentColor: string;
     displayName: string;
     defaults: PromoDefaults;
+    promoterPresets?: Record<string, PromoterPreset>;
 }

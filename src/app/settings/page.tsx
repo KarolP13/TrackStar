@@ -8,7 +8,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { subscribeToPromos } from "@/lib/promos";
 import { exportPromosToCSV } from "@/lib/csvExport";
 import { exportPromoTablePDF } from "@/lib/pdfExport";
-import { Promo, PAYMENT_METHODS } from "@/lib/types";
+import { Promo, PAYMENT_METHODS, PromoterPreset } from "@/lib/types";
 
 const PRESET_COLORS = [
     "#3b82f6", // Blue
@@ -37,6 +37,11 @@ export default function SettingsPage() {
     const [isSaving, setIsSaving] = useState(false);
     const [saveMessage, setSaveMessage] = useState("");
 
+    // Promoter presets state
+    const [presetEdits, setPresetEdits] = useState<Record<string, PromoterPreset>>({});
+    const [presetSaving, setPresetSaving] = useState(false);
+    const [presetMessage, setPresetMessage] = useState("");
+
     // Populate form when profile loads
     useEffect(() => {
         setDisplayName(profile.displayName || "");
@@ -46,6 +51,20 @@ export default function SettingsPage() {
         setAccountHandle(profile.defaults?.accountHandle || "");
         setPromoterName(profile.defaults?.promoterName || "");
     }, [profile]);
+
+    // Derive unique promoter names from past promos
+    const uniquePromoterNames = Array.from(new Set(promos.map(p => p.promoterName).filter(Boolean))).sort();
+
+    // Initialize preset edits from profile when it loads
+    useEffect(() => {
+        const existing = profile.promoterPresets || {};
+        const initial: Record<string, PromoterPreset> = {};
+        uniquePromoterNames.forEach(name => {
+            initial[name] = existing[name] || { paymentMethod: "", amount: null };
+        });
+        setPresetEdits(initial);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [profile.promoterPresets, promos]);
 
     // Fetch promos for export features
     useEffect(() => {
@@ -76,6 +95,27 @@ export default function SettingsPage() {
             setSaveMessage("Failed to save settings.");
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handleSavePresets = async () => {
+        setPresetSaving(true);
+        setPresetMessage("");
+        try {
+            // Filter out empty presets
+            const cleanPresets: Record<string, PromoterPreset> = {};
+            Object.entries(presetEdits).forEach(([name, preset]) => {
+                if (preset.paymentMethod) {
+                    cleanPresets[name] = preset;
+                }
+            });
+            await updateProfile({ promoterPresets: cleanPresets });
+            setPresetMessage("Presets saved!");
+            setTimeout(() => setPresetMessage(""), 3000);
+        } catch {
+            setPresetMessage("Failed to save presets.");
+        } finally {
+            setPresetSaving(false);
         }
     };
 
@@ -248,6 +288,74 @@ export default function SettingsPage() {
                             )}
                         </div>
                     </form>
+
+                    <hr className="my-6 border-border-light" />
+
+                    {/* Promoter Presets Section */}
+                    <div className="bg-surface border border-border-light rounded-xl p-6">
+                        <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-2">
+                            Promoter Presets
+                        </h2>
+                        <p className="text-xs text-text-muted mb-6">
+                            Set default payment method and amount per promoter. These auto-fill when selecting a promoter in the Add Promo modal.
+                        </p>
+
+                        {uniquePromoterNames.length === 0 ? (
+                            <p className="text-sm text-text-muted italic">No promoters found yet. Add a promo to see promoters here.</p>
+                        ) : (
+                            <div className="space-y-3">
+                                {/* Header row */}
+                                <div className="hidden sm:grid grid-cols-[1fr_150px_120px] gap-3 px-1">
+                                    <span className="text-xs text-text-muted uppercase tracking-wider font-medium">Promoter</span>
+                                    <span className="text-xs text-text-muted uppercase tracking-wider font-medium">Default Method</span>
+                                    <span className="text-xs text-text-muted uppercase tracking-wider font-medium">Default Amount</span>
+                                </div>
+                                {uniquePromoterNames.map(name => {
+                                    const preset = presetEdits[name] || { paymentMethod: "", amount: null };
+                                    return (
+                                        <div key={name} className="grid grid-cols-1 sm:grid-cols-[1fr_150px_120px] gap-2 sm:gap-3 p-3 sm:p-2 sm:px-1 bg-surface-hover/50 sm:bg-transparent rounded-lg sm:rounded-none border border-border-light sm:border-0 sm:border-b">
+                                            <div className="flex items-center">
+                                                <span className="text-sm text-foreground font-medium">{name}</span>
+                                            </div>
+                                            <select
+                                                value={preset.paymentMethod}
+                                                onChange={(e) => setPresetEdits(prev => ({ ...prev, [name]: { ...preset, paymentMethod: e.target.value } }))}
+                                                className="bg-surface border border-border-light rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-accent/50 appearance-none cursor-pointer transition-all"
+                                            >
+                                                <option value="">No default</option>
+                                                {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
+                                            </select>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                value={preset.amount ?? ""}
+                                                onChange={(e) => setPresetEdits(prev => ({ ...prev, [name]: { ...preset, amount: parseFloat(e.target.value) || null } }))}
+                                                placeholder="—"
+                                                className="bg-surface border border-border-light rounded-lg px-3 py-2 text-sm text-foreground placeholder-text-muted focus:outline-none focus:border-accent/50 transition-all"
+                                            />
+                                        </div>
+                                    );
+                                })}
+                                <div className="flex items-center gap-4 pt-2">
+                                    <button
+                                        type="button"
+                                        onClick={handleSavePresets}
+                                        disabled={presetSaving}
+                                        className="px-5 py-2 rounded-lg bg-accent hover:bg-accent/90 text-white text-sm font-medium transition-all shadow-lg shadow-accent/20 flex items-center gap-2 disabled:opacity-50"
+                                    >
+                                        {presetSaving && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                                        Save Presets
+                                    </button>
+                                    {presetMessage && (
+                                        <p className={`text-sm ${presetMessage.includes("Failed") ? "text-red-400" : "text-emerald-500"} animate-fade-in`}>
+                                            {presetMessage}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
 
                     <hr className="my-10 border-border-light" />
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Promo, PromoFormData, SavedPromoter, SavedAccount, PAYMENT_METHODS, PAYMENT_STATUSES, RECURRING_FREQUENCIES, PromoDefaults } from "@/lib/types";
+import { Promo, PromoFormData, SavedPromoter, SavedAccount, PAYMENT_METHODS, PAYMENT_STATUSES, RECURRING_FREQUENCIES, PromoDefaults, PromoterPreset } from "@/lib/types";
 import { addSavedPromoter, deleteSavedPromoter, addSavedAccount, deleteSavedAccount } from "@/lib/promos";
 
 interface PromoModalProps {
@@ -15,6 +15,8 @@ interface PromoModalProps {
     isDuplicate?: boolean;
     promoDefaults?: PromoDefaults;
     pastPromotingNames?: string[];
+    promoterPresets?: Record<string, PromoterPreset>;
+    onSavePreset?: (promoterName: string, preset: PromoterPreset) => void;
 }
 
 const defaultFormData: PromoFormData = {
@@ -49,6 +51,8 @@ export default function PromoModal({
     isDuplicate,
     promoDefaults,
     pastPromotingNames = [],
+    promoterPresets = {},
+    onSavePreset,
 }: PromoModalProps) {
     const [formData, setFormData] = useState<PromoFormData>({ ...defaultFormData });
     const [loading, setLoading] = useState(false);
@@ -58,6 +62,7 @@ export default function PromoModal({
     const [newAccountHandle, setNewAccountHandle] = useState("");
     const [showAddAccount, setShowAddAccount] = useState(false);
     const [showRecurring, setShowRecurring] = useState(false);
+    const [saveAsDefault, setSaveAsDefault] = useState(false);
 
     useEffect(() => {
         if (editingPromo) {
@@ -100,6 +105,7 @@ export default function PromoModal({
         setNewPromoterName("");
         setShowAddAccount(false);
         setNewAccountHandle("");
+        setSaveAsDefault(false);
     }, [editingPromo, isOpen, isDuplicate]);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -115,6 +121,13 @@ export default function PromoModal({
         setLoading(true);
         setError("");
         try {
+            // Save promoter preset if checkbox is checked
+            if (saveAsDefault && formData.promoterName.trim() && onSavePreset) {
+                onSavePreset(formData.promoterName.trim(), {
+                    paymentMethod: formData.paymentMethod,
+                    amount: formData.paymentAmount || null,
+                });
+            }
             await onSave(formData);
             onClose();
         } catch (err) {
@@ -180,6 +193,21 @@ export default function PromoModal({
         });
     };
 
+    // Auto-fill payment from promoter preset when promoter changes
+    const handlePromoterChange = (name: string) => {
+        const preset = promoterPresets[name];
+        if (preset && !editingPromo) {
+            setFormData(prev => ({
+                ...prev,
+                promoterName: name,
+                paymentMethod: preset.paymentMethod || prev.paymentMethod,
+                paymentAmount: preset.amount ?? prev.paymentAmount,
+            }));
+        } else {
+            setFormData(prev => ({ ...prev, promoterName: name }));
+        }
+    };
+
     if (!isOpen) return null;
 
     const modalTitle = isDuplicate
@@ -197,8 +225,8 @@ export default function PromoModal({
             />
 
             {/* Slide-over / Full-screen Panel */}
-            <div className="fixed inset-0 md:inset-y-0 md:left-auto md:right-0 z-50 w-full md:max-w-lg animate-slide-in">
-                <div className="h-full bg-background md:border-l border-border-light shadow-2xl flex flex-col">
+            <div className="fixed inset-0 z-50 flex items-end md:items-center md:justify-end animate-slide-in">
+                <div className="w-full md:max-w-lg h-[100dvh] md:h-auto md:max-h-[90vh] md:my-4 md:mr-4 md:rounded-2xl bg-background md:border border-border-light shadow-2xl flex flex-col overflow-hidden">
                     {/* Header */}
                     <div className="flex items-center justify-between px-5 sm:px-6 py-4 sm:py-5 border-b border-border-light safe-area-top">
                         <h2 className="text-lg font-semibold text-foreground">
@@ -255,7 +283,7 @@ export default function PromoModal({
                                     <div className="flex gap-2">
                                         <select
                                             value={formData.promoterName}
-                                            onChange={(e) => setFormData({ ...formData, promoterName: e.target.value })}
+                                            onChange={(e) => handlePromoterChange(e.target.value)}
                                             className="flex-1 bg-surface border border-border-light rounded-lg px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-accent/50 appearance-none cursor-pointer transition-all"
                                         >
                                             <option value="">Select a promoter...</option>
@@ -278,7 +306,7 @@ export default function PromoModal({
                                 </div>
                             ) : (
                                 <div className="space-y-2">
-                                    <input type="text" value={formData.promoterName} onChange={(e) => setFormData({ ...formData, promoterName: e.target.value })} placeholder="Who ran the promo?" className="w-full bg-surface border border-border-light rounded-lg px-4 py-2.5 text-sm text-foreground placeholder-text-muted focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 transition-all" />
+                                    <input type="text" value={formData.promoterName} onChange={(e) => handlePromoterChange(e.target.value)} placeholder="Who ran the promo?" className="w-full bg-surface border border-border-light rounded-lg px-4 py-2.5 text-sm text-foreground placeholder-text-muted focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 transition-all" />
                                     <button type="button" onClick={() => setShowAddPromoter(true)} className="text-xs text-accent/60 hover:text-accent transition-colors">+ Save as a promoter for quick access</button>
                                 </div>
                             )}
@@ -356,6 +384,21 @@ export default function PromoModal({
                                 <input type="number" min="0" step="0.01" value={formData.paymentAmount || ""} onChange={(e) => setFormData({ ...formData, paymentAmount: parseFloat(e.target.value) || 0 })} placeholder="0.00" className="w-full bg-surface border border-border-light rounded-lg px-4 py-2.5 text-sm text-foreground placeholder-text-muted focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 transition-all" />
                             </div>
                         </div>
+
+                        {/* Save as default for promoter */}
+                        {formData.promoterName.trim() && !editingPromo && (
+                            <label className="flex items-center gap-2 cursor-pointer group animate-fade-in">
+                                <input
+                                    type="checkbox"
+                                    checked={saveAsDefault}
+                                    onChange={(e) => setSaveAsDefault(e.target.checked)}
+                                    className="w-4 h-4 rounded border border-border-light bg-surface accent-accent cursor-pointer"
+                                />
+                                <span className="text-xs text-text-muted group-hover:text-text-secondary transition-colors">
+                                    Save payment defaults for <span className="text-accent font-medium">{formData.promoterName.trim()}</span>
+                                </span>
+                            </label>
+                        )}
 
                         {/* Bundle Option */}
                         <div className="flex items-center gap-3 px-4 py-3 bg-surface border border-border-light rounded-xl">

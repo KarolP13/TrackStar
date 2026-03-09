@@ -7,7 +7,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import SummaryCards from "@/components/SummaryCards";
 import PromoTable from "@/components/PromoTable";
 import PromoModal from "@/components/PromoModal";
-import { Promo, PromoFormData, SavedPromoter, SavedAccount } from "@/lib/types";
+import { Promo, PromoFormData, SavedPromoter, SavedAccount, PromoterPreset } from "@/lib/types";
 import {
   subscribeToPromos, addPromo, updatePromo, deletePromo,
   subscribeToSavedPromoters, subscribeToSavedAccounts,
@@ -19,7 +19,7 @@ import { useTheme } from "@/lib/ThemeContext";
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { profile } = useTheme();
+  const { profile, updateProfile } = useTheme();
   const [promos, setPromos] = useState<Promo[]>([]);
   const [savedPromoters, setSavedPromoters] = useState<SavedPromoter[]>([]);
   const [savedAccounts, setSavedAccounts] = useState<SavedAccount[]>([]);
@@ -97,6 +97,15 @@ export default function DashboardPage() {
 
   const pastPromotingNames = Array.from(new Set(promos.map(p => p.promoting))).sort();
 
+  const handleSavePreset = (promoterName: string, preset: PromoterPreset) => {
+    updateProfile({
+      promoterPresets: {
+        ...(profile?.promoterPresets || {}),
+        [promoterName]: preset,
+      },
+    });
+  };
+
   return (
     <ProtectedRoute>
       <DashboardLayout>
@@ -169,6 +178,8 @@ export default function DashboardPage() {
           isDuplicate={isDuplicate}
           promoDefaults={profile?.defaults}
           pastPromotingNames={pastPromotingNames}
+          promoterPresets={profile?.promoterPresets || {}}
+          onSavePreset={handleSavePreset}
         />
 
         {/* Mobile FAB — Add Promo */}
