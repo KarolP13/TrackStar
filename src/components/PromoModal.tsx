@@ -14,6 +14,7 @@ interface PromoModalProps {
     userId: string;
     isDuplicate?: boolean;
     promoDefaults?: PromoDefaults;
+    pastPromotingNames?: string[];
 }
 
 const defaultFormData: PromoFormData = {
@@ -34,6 +35,7 @@ const defaultFormData: PromoFormData = {
     isRecurringParent: false,
     isBundle: false,
     bundleCount: null,
+    bundleIndex: null,
 };
 
 export default function PromoModal({
@@ -46,6 +48,7 @@ export default function PromoModal({
     userId,
     isDuplicate,
     promoDefaults,
+    pastPromotingNames = [],
 }: PromoModalProps) {
     const [formData, setFormData] = useState<PromoFormData>({ ...defaultFormData });
     const [loading, setLoading] = useState(false);
@@ -80,6 +83,7 @@ export default function PromoModal({
                 isRecurringParent: isDuplicate ? false : (editingPromo.isRecurringParent || false),
                 isBundle: editingPromo.isBundle || false,
                 bundleCount: editingPromo.bundleCount || null,
+                bundleIndex: editingPromo.bundleIndex || null,
             });
             setShowRecurring(!isDuplicate && (editingPromo.isRecurring || false));
         } else {
@@ -228,11 +232,17 @@ export default function PromoModal({
                             </label>
                             <input
                                 type="text"
+                                list="promoting-suggestions"
                                 value={formData.promoting}
                                 onChange={(e) => setFormData({ ...formData, promoting: e.target.value })}
                                 placeholder="e.g. Drake, Nike Campaign, New Album"
                                 className="w-full bg-surface border border-border-light rounded-lg px-4 py-2.5 text-sm text-foreground placeholder-text-muted focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 transition-all"
                             />
+                            <datalist id="promoting-suggestions">
+                                {pastPromotingNames.map((name) => (
+                                    <option key={name} value={name} />
+                                ))}
+                            </datalist>
                         </div>
 
                         {/* Promoter */}
@@ -364,15 +374,30 @@ export default function PromoModal({
                             </button>
                             {formData.isBundle && (
                                 <div className="flex items-center gap-2 ml-auto animate-fade-in">
-                                    <input
-                                        type="number"
-                                        min="2"
-                                        max="100"
-                                        value={formData.bundleCount || 3}
-                                        onChange={(e) => setFormData({ ...formData, bundleCount: parseInt(e.target.value) || 3 })}
-                                        className="w-16 bg-surface border border-border-light rounded-lg px-2.5 py-1.5 text-sm text-foreground text-center focus:outline-none focus:border-accent/50 transition-all"
-                                    />
-                                    <span className="text-xs text-text-muted">posts</span>
+                                    <div className="flex items-center gap-1">
+                                        <span className="text-xs text-text-muted hidden sm:inline">Post #</span>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max={formData.bundleCount || 100}
+                                            value={formData.bundleIndex || ""}
+                                            onChange={(e) => setFormData({ ...formData, bundleIndex: parseInt(e.target.value) || null })}
+                                            placeholder="1"
+                                            className="w-12 bg-surface border border-border-light rounded-lg px-2 py-1.5 text-sm text-foreground text-center focus:outline-none focus:border-accent/50 transition-all placeholder-text-muted"
+                                        />
+                                    </div>
+                                    <span className="text-xs text-text-muted font-medium">of</span>
+                                    <div className="flex items-center gap-1">
+                                        <input
+                                            type="number"
+                                            min="2"
+                                            max="100"
+                                            value={formData.bundleCount || 3}
+                                            onChange={(e) => setFormData({ ...formData, bundleCount: parseInt(e.target.value) || 3 })}
+                                            className="w-14 bg-surface border border-border-light rounded-lg px-2 py-1.5 text-sm text-foreground text-center focus:outline-none focus:border-accent/50 transition-all"
+                                        />
+                                        <span className="text-xs text-text-muted hidden sm:inline">total</span>
+                                    </div>
                                 </div>
                             )}
                         </div>

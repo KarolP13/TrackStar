@@ -226,7 +226,7 @@ export default function PromoTable({ promos, onEdit, onDelete, onDuplicate, onCa
                                             {promo.promoting}
                                             {promo.isBundle && promo.bundleCount && (
                                                 <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
-                                                    {promo.bundleCount}x
+                                                    {promo.bundleIndex ? `${promo.bundleIndex}/${promo.bundleCount}` : `${promo.bundleCount}x`}
                                                 </span>
                                             )}
                                         </div>
@@ -299,7 +299,7 @@ export default function PromoTable({ promos, onEdit, onDelete, onDuplicate, onCa
                                         </p>
                                         {promo.isBundle && promo.bundleCount && (
                                             <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
-                                                {promo.bundleCount}x
+                                                {promo.bundleIndex ? `${promo.bundleIndex}/${promo.bundleCount}` : `${promo.bundleCount}x`}
                                             </span>
                                         )}
                                     </div>

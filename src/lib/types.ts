@@ -23,6 +23,7 @@ export interface Promo {
     // Bundle fields
     isBundle?: boolean;
     bundleCount?: number | null; // number of posts in the bundle
+    bundleIndex?: number | null; // which post out of the bundle count this is
 }
 
 export type PromoFormData = Omit<Promo, "id" | "userId" | "createdAt" | "promoDate"> & {

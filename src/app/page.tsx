@@ -95,6 +95,8 @@ export default function DashboardPage() {
     setModalOpen(true);
   };
 
+  const pastPromotingNames = Array.from(new Set(promos.map(p => p.promoting))).sort();
+
   return (
     <ProtectedRoute>
       <DashboardLayout>
@@ -166,6 +168,7 @@ export default function DashboardPage() {
           userId={user?.uid || ""}
           isDuplicate={isDuplicate}
           promoDefaults={profile?.defaults}
+          pastPromotingNames={pastPromotingNames}
         />
 
         {/* Mobile FAB — Add Promo */}
