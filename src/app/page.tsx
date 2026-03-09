@@ -211,6 +211,7 @@ export default function DashboardPage() {
           pastPromotingNames={pastPromotingNames}
           promoterPresets={profile?.promoterPresets || {}}
           onSavePreset={handleSavePreset}
+          allPromos={promos}
         />
 
         {/* Import Modal */}

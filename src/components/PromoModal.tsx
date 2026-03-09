@@ -14,9 +14,10 @@ interface PromoModalProps {
     userId: string;
     isDuplicate?: boolean;
     promoDefaults?: PromoDefaults;
-    pastPromotingNames?: string[];
     promoterPresets?: Record<string, PromoterPreset>;
     onSavePreset?: (promoterName: string, preset: PromoterPreset) => void;
+    allPromos?: Promo[];
+    pastPromotingNames?: string[];
 }
 
 const defaultFormData: PromoFormData = {
@@ -58,6 +59,7 @@ export default function PromoModal({
     pastPromotingNames = [],
     promoterPresets = {},
     onSavePreset,
+    allPromos = [],
 }: PromoModalProps) {
     const [formData, setFormData] = useState<PromoFormData>({ ...defaultFormData });
     const [loading, setLoading] = useState(false);
@@ -92,9 +94,9 @@ export default function PromoModal({
                 recurringEndValue: isDuplicate ? null : (editingPromo.recurringEndValue || null),
                 recurringGroupId: isDuplicate ? null : (editingPromo.recurringGroupId || null),
                 isRecurringParent: isDuplicate ? false : (editingPromo.isRecurringParent || false),
-                isBundle: editingPromo.isBundle || false,
                 bundleCount: editingPromo.bundleCount || null,
                 bundleIndex: editingPromo.bundleIndex || null,
+                bundleGroupId: editingPromo.bundleGroupId || null,
                 impressions: editingPromo.impressions ?? null,
                 likes: editingPromo.likes ?? null,
                 comments: editingPromo.comments ?? null,
@@ -251,6 +253,18 @@ export default function PromoModal({
             setFormData(prev => ({ ...prev, promoterName: name }));
         }
     };
+
+    // Calculate available bundles for standard attaching
+    // Find all promos that are part of a bundle, group them by bundleGroupId
+    const availableBundles = Array.from(new Set(
+        allPromos.filter(p => p.isBundle && p.bundleGroupId && p.promoting && p.promoterName)
+            .map(p => JSON.stringify({
+                groupId: p.bundleGroupId,
+                promoting: p.promoting,
+                promoterName: p.promoterName,
+                count: p.bundleCount
+            }))
+    )).map(s => JSON.parse(s) as { groupId: string, promoting: string, promoterName: string, count: number });
 
     if (!isOpen) return null;
 
@@ -473,52 +487,128 @@ export default function PromoModal({
                         )}
 
                         {/* Bundle Option */}
-                        <div className="flex items-center gap-3 px-4 py-3 bg-surface border border-border-light rounded-xl">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    const next = !formData.isBundle;
-                                    setFormData({ ...formData, isBundle: next, bundleCount: next ? 3 : null });
-                                }}
-                                className="flex items-center gap-2 text-sm text-text-muted hover:text-text-secondary transition-colors"
-                            >
-                                <div className={`w-10 h-5 rounded-full relative transition-colors ${formData.isBundle ? "bg-accent" : "bg-surface-hover"}`}>
-                                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${formData.isBundle ? "left-5" : "left-0.5"}`} />
-                                </div>
-                                Bundle deal
-                            </button>
+                        <div className="flex flex-col gap-3 px-4 py-3 bg-surface border border-border-light rounded-xl">
+                            <div className="flex items-center gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const next = !formData.isBundle;
+                                        setFormData({ ...formData, isBundle: next, bundleCount: next ? 3 : null, bundleGroupId: null });
+                                    }}
+                                    className="flex items-center gap-2 text-sm text-text-muted hover:text-text-secondary transition-colors"
+                                >
+                                    <div className={`w-10 h-5 rounded-full relative transition-colors ${formData.isBundle ? "bg-accent" : "bg-surface-hover"}`}>
+                                        <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${formData.isBundle ? "left-5" : "left-0.5"}`} />
+                                    </div>
+                                    Multiple post bundle
+                                </button>
+                                {formData.isBundle && !formData.bundleGroupId && (
+                                    <div className="flex items-center gap-2 ml-auto animate-fade-in">
+                                        <div className="flex items-center gap-1">
+                                            <span className="text-xs text-text-muted hidden sm:inline">Post #</span>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                max={formData.bundleCount || 100}
+                                                value={formData.bundleIndex || ""}
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    setFormData({ ...formData, bundleIndex: val === "" ? null : parseInt(val) });
+                                                }}
+                                                placeholder="1"
+                                                className="w-12 bg-surface border border-border-light rounded-lg px-2 py-1.5 text-sm text-foreground text-center focus:outline-none focus:border-accent/50 transition-all placeholder-text-muted"
+                                            />
+                                        </div>
+                                        <span className="text-xs text-text-muted font-medium">of</span>
+                                        <div className="flex items-center gap-1">
+                                            <input
+                                                type="number"
+                                                min="2"
+                                                max="100"
+                                                value={formData.bundleCount || ""}
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    setFormData({ ...formData, bundleCount: val === "" ? null : parseInt(val) });
+                                                }}
+                                                className="w-14 bg-surface border border-border-light rounded-lg px-2 py-1.5 text-sm text-foreground text-center focus:outline-none focus:border-accent/50 transition-all"
+                                            />
+                                            <span className="text-xs text-text-muted hidden sm:inline">total</span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Attach to bundle selector */}
                             {formData.isBundle && (
-                                <div className="flex items-center gap-2 ml-auto animate-fade-in">
-                                    <div className="flex items-center gap-1">
-                                        <span className="text-xs text-text-muted hidden sm:inline">Post #</span>
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            max={formData.bundleCount || 100}
-                                            value={formData.bundleIndex || ""}
+                                <div className="pt-3 border-t border-white/[0.06] animate-fade-in flex flex-col gap-3">
+                                    <div>
+                                        <label className="block text-xs text-text-muted mb-1.5 uppercase tracking-wider font-medium">Attach to Bundle</label>
+                                        <select
+                                            value={formData.bundleGroupId || "new"}
                                             onChange={(e) => {
                                                 const val = e.target.value;
-                                                setFormData({ ...formData, bundleIndex: val === "" ? null : parseInt(val) });
+                                                if (val === "new") {
+                                                    setFormData({ ...formData, bundleGroupId: null });
+                                                } else {
+                                                    const bundle = availableBundles.find(b => b.groupId === val);
+                                                    setFormData({
+                                                        ...formData,
+                                                        bundleGroupId: val,
+                                                        bundleCount: bundle?.count || formData.bundleCount,
+                                                        promoting: bundle?.promoting || formData.promoting,
+                                                        promoterName: bundle?.promoterName || formData.promoterName,
+                                                    });
+                                                }
                                             }}
-                                            placeholder="1"
-                                            className="w-12 bg-surface border border-border-light rounded-lg px-2 py-1.5 text-sm text-foreground text-center focus:outline-none focus:border-accent/50 transition-all placeholder-text-muted"
-                                        />
+                                            className="w-full bg-surface border border-border-light rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-accent/50 appearance-none cursor-pointer transition-all"
+                                        >
+                                            <option value="new">Create new bundle</option>
+                                            {availableBundles.length > 0 && <optgroup label="Existing Bundles" className="bg-surface text-text-muted text-xs">
+                                                {availableBundles.map(b => (
+                                                    <option key={b.groupId} value={b.groupId} className="text-foreground">
+                                                        {b.promoting} by {b.promoterName} ({b.count}x)
+                                                    </option>
+                                                ))}
+                                            </optgroup>}
+                                        </select>
                                     </div>
-                                    <span className="text-xs text-text-muted font-medium">of</span>
-                                    <div className="flex items-center gap-1">
-                                        <input
-                                            type="number"
-                                            min="2"
-                                            max="100"
-                                            value={formData.bundleCount || ""}
-                                            onChange={(e) => {
-                                                const val = e.target.value;
-                                                setFormData({ ...formData, bundleCount: val === "" ? null : parseInt(val) });
-                                            }}
-                                            className="w-14 bg-surface border border-border-light rounded-lg px-2 py-1.5 text-sm text-foreground text-center focus:outline-none focus:border-accent/50 transition-all"
-                                        />
-                                        <span className="text-xs text-text-muted hidden sm:inline">total</span>
-                                    </div>
+                                    {formData.bundleGroupId && (
+                                        <div className="flex items-center gap-3">
+                                            <label className="flex items-center gap-2 text-sm text-text-muted cursor-pointer hover:text-foreground transition-colors w-full">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={formData.bundleIndex === 0}
+                                                    onChange={(e) => {
+                                                        const isZero = e.target.checked;
+                                                        setFormData({
+                                                            ...formData,
+                                                            bundleIndex: isZero ? 0 : 1,
+                                                            paymentAmount: isZero ? 0 : formData.paymentAmount
+                                                        });
+                                                    }}
+                                                    className="w-4 h-4 rounded border-border-light accent-accent cursor-pointer"
+                                                />
+                                                Bundle Payment / Fulfillment Post
+                                            </label>
+                                            {formData.bundleIndex !== 0 && (
+                                                <div className="flex items-center gap-2 shrink-0">
+                                                    <span className="text-xs text-text-muted">Post #</span>
+                                                    <input
+                                                        type="number"
+                                                        min="1"
+                                                        max={formData.bundleCount || 100}
+                                                        value={formData.bundleIndex || ""}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value;
+                                                            setFormData({ ...formData, bundleIndex: val === "" ? null : parseInt(val) });
+                                                        }}
+                                                        placeholder="1"
+                                                        className="w-12 bg-black/20 border border-white/5 rounded px-2 py-1 text-xs text-foreground text-center focus:outline-none focus:border-accent/50 transition-all placeholder-text-muted"
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
