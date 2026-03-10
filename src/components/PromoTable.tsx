@@ -405,8 +405,8 @@ export default function PromoTable({ promos, onEdit,
             )}
 
             {/* Desktop Table */}
-            <div className="hidden md:block overflow-x-auto">
-                <table className="w-full">
+            <div className="hidden md:block w-full max-w-full overflow-x-auto">
+                <table className="w-full min-w-[800px]">
                     <thead>
                         <tr className="border-b border-border-light">
                             {selectMode && <th className="w-10 px-3 py-3"></th>}
@@ -511,7 +511,7 @@ export default function PromoTable({ promos, onEdit,
             </div>
 
             {/* Mobile Card View */}
-            <div className="md:hidden space-y-3">
+            <div className="md:hidden space-y-3 w-full max-w-[100vw] overflow-hidden overflow-x-hidden pb-4 px-1">
                 {filteredAndSorted.length === 0 ? (
                     <div className="text-center py-12 text-text-muted text-sm">
                         {promos.length === 0 ? 'No promos yet. Tap "Add Promo" to get started.' : "No promos match your filters."}
@@ -519,46 +519,46 @@ export default function PromoTable({ promos, onEdit,
                 ) : (
                     filteredAndSorted.map((promo) => (
                         <div key={promo.id} onClick={() => selectMode ? (promo.id && toggleSelect(promo.id)) : onEdit(promo)} className={`bg-surface border border-border-light rounded-xl p-4 active:bg-surface-hover transition-all cursor-pointer ${selectedIds.has(promo.id!) ? "ring-1 ring-accent/40 bg-accent/5" : ""}`}>
-                            <div className="flex items-start justify-between mb-2">
-                                <div className="flex items-center gap-2">
+                            <div className="flex items-start justify-between mb-2 gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
                                     {selectMode && (
-                                        <input type="checkbox" checked={!!promo.id && selectedIds.has(promo.id)} onChange={() => promo.id && toggleSelect(promo.id)} onClick={(e) => e.stopPropagation()} className="w-4 h-4 rounded border-border-light accent-accent cursor-pointer" />
+                                        <input type="checkbox" checked={!!promo.id && selectedIds.has(promo.id)} onChange={() => promo.id && toggleSelect(promo.id)} onClick={(e) => e.stopPropagation()} className="w-4 h-4 rounded border-border-light accent-accent cursor-pointer shrink-0" />
                                     )}
-                                    <div>
-                                        <div className="flex items-center gap-2 mb-0.5">
-                                            <p className="text-foreground font-medium">
+                                    <div className="min-w-0">
+                                        <div className="flex items-center gap-2 mb-0.5 max-w-full">
+                                            <p className="text-foreground font-medium truncate">
                                                 {promo.promoting}
                                                 {promo.isRecurring && <RecurringIcon />}
                                             </p>
                                             {promo.isBundle && promo.bundleCount && (
-                                                <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                                                <span className="shrink-0 inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
                                                     {promo.bundleIndex ? `${promo.bundleIndex}/${promo.bundleCount}` : `${promo.bundleCount}x`}
                                                 </span>
                                             )}
                                         </div>
-                                        <p className="text-accent text-sm font-mono">{promo.accountHandle}</p>
+                                        <p className="text-accent text-sm font-mono truncate">{promo.accountHandle}</p>
                                     </div>
                                 </div>
-                                <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium border ${getStatusColor(promo.paymentStatus)}`}>{promo.paymentStatus}</span>
+                                <span className={`shrink-0 inline-flex px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-medium border ${getStatusColor(promo.paymentStatus)}`}>{promo.paymentStatus}</span>
                             </div>
-                            <div className="flex items-center justify-between text-sm">
+                            <div className="flex items-center justify-between text-sm mt-3">
                                 <span className="text-text-secondary">{formatDate(promo.promoDate)}</span>
                                 <span className="text-foreground font-medium">${promo.paymentAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
                             </div>
                             <div className="flex items-center justify-between text-xs mt-1.5">
-                                <span className="text-text-muted">{promo.promoterName}</span>
-                                <span className="text-text-muted">{promo.paymentMethod}</span>
+                                <span className="text-text-muted truncate max-w-[50%]">{promo.promoterName}</span>
+                                <span className="text-text-muted truncate max-w-[40%] text-right">{promo.paymentMethod}</span>
                             </div>
                             {promo.tweetLink && (
                                 <a href={promo.tweetLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 mt-2.5 text-xs text-text-muted hover:text-accent transition-colors" onClick={(e) => e.stopPropagation()}>
-                                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                                    <svg className="w-3 h-3 shrink-0" fill="currentColor" viewBox="0 0 24 24">
                                         <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                                     </svg>
-                                    View Link
+                                    <span className="truncate">View Link</span>
                                 </a>
                             )}
                             {(promo.impressions || promo.likes || promo.comments || promo.bookmarks || promo.retweets) && (
-                                <div className="flex items-center gap-3 mt-2 text-[11px] text-text-muted">
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3 text-[11px] text-text-muted">
                                     {promo.impressions != null && <span>{fmtNum(promo.impressions)} imp</span>}
                                     {promo.likes != null && <span>❤️ {promo.likes}</span>}
                                     {promo.comments != null && <span>💬 {promo.comments}</span>}
@@ -566,9 +566,9 @@ export default function PromoTable({ promos, onEdit,
                                     {promo.retweets != null && <span>🔁 {promo.retweets}</span>}
                                 </div>
                             )}
-                            {promo.notes && (<p className="text-xs text-text-muted mt-2 truncate">{promo.notes}</p>)}
+                            {promo.notes && (<p className="text-xs text-text-muted mt-2 truncate line-clamp-2 white-space-normal">{promo.notes}</p>)}
                             {!selectMode && (
-                                <div className="flex justify-end gap-3 mt-3 pt-2 border-t border-border-light">
+                                <div className="flex flex-wrap justify-end gap-3 mt-3 pt-3 border-t border-border-light">
                                     <button onClick={(e) => { e.stopPropagation(); onDuplicate(promo); }} className="text-xs text-accent hover:text-accent-light transition-colors">Duplicate</button>
                                     {promo.isRecurring && promo.recurringGroupId && onCancelSeries && (
                                         <button onClick={(e) => { e.stopPropagation(); if (confirm("Cancel all future pending promos in this series?")) onCancelSeries(promo.recurringGroupId!); }} className="text-xs text-amber-500 hover:text-amber-400 transition-colors">Cancel Series</button>

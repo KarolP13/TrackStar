@@ -343,7 +343,7 @@ export default function AnalyticsPage() {
     return (
         <ProtectedRoute>
             <DashboardLayout>
-                <div className="animate-fade-in space-y-6">
+                <div className="animate-fade-in space-y-6 max-w-[100vw] overflow-hidden px-1 sm:px-0">
                     {/* Header */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div>
@@ -452,53 +452,63 @@ export default function AnalyticsPage() {
                                         <button onClick={() => setTimeView("monthly")} className={`px-2.5 py-1 rounded text-[10px] font-medium transition-all ${timeView === "monthly" ? "bg-accent-light text-accent" : "text-text-muted hover:text-text-secondary"}`}>Monthly</button>
                                     </div>
                                 </div>
-                                <ResponsiveContainer width="100%" height={280}>
-                                    <LineChart data={revenueOverTime}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
-                                        <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
-                                        <YAxis tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v}`} />
-                                        <Tooltip content={<MoneyTooltip />} />
-                                        <Line type="monotone" dataKey="revenue" stroke="var(--accent)" strokeWidth={2.5} dot={{ r: 4, fill: "var(--accent)" }} activeDot={{ r: 6, fill: "var(--accent)" }} name="Revenue" />
-                                    </LineChart>
-                                </ResponsiveContainer>
+                                <div className="w-full overflow-x-auto">
+                                    <div className="min-w-[500px]">
+                                        <ResponsiveContainer width="100%" height={280}>
+                                            <LineChart data={revenueOverTime}>
+                                                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
+                                                <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                                                <YAxis tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v}`} />
+                                                <Tooltip content={<MoneyTooltip />} />
+                                                <Line type="monotone" dataKey="revenue" stroke="var(--accent)" strokeWidth={2.5} dot={{ r: 4, fill: "var(--accent)" }} activeDot={{ r: 6, fill: "var(--accent)" }} name="Revenue" />
+                                            </LineChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
                             </div>
 
                             {/* ── Engagement Over Time ── */}
                             {hasAnyEngagement && engagementOverTime.length > 0 && (
                                 <div className="bg-surface border border-border-light rounded-xl p-4 sm:p-6">
                                     <h3 className="text-sm font-semibold text-foreground mb-4">Engagement Over Time</h3>
-                                    <ResponsiveContainer width="100%" height={300}>
-                                        <BarChart data={engagementOverTime}>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
-                                            <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
-                                            <YAxis tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} tickFormatter={(v) => fmtNum(v)} />
-                                            <Tooltip content={<NumTooltip />} />
-                                            <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
-                                            <Bar dataKey="impressions" name="Impressions" fill={ENGAGEMENT_COLORS.impressions} radius={[2, 2, 0, 0]} />
-                                            <Bar dataKey="likes" name="Likes" fill={ENGAGEMENT_COLORS.likes} radius={[2, 2, 0, 0]} />
-                                            <Bar dataKey="comments" name="Comments" fill={ENGAGEMENT_COLORS.comments} radius={[2, 2, 0, 0]} />
-                                            <Bar dataKey="bookmarks" name="Bookmarks" fill={ENGAGEMENT_COLORS.bookmarks} radius={[2, 2, 0, 0]} />
-                                            <Bar dataKey="retweets" name="Reposts" fill={ENGAGEMENT_COLORS.retweets} radius={[2, 2, 0, 0]} />
-                                        </BarChart>
-                                    </ResponsiveContainer>
+                                    <div className="w-full overflow-x-auto">
+                                        <div className="min-w-[500px]">
+                                            <ResponsiveContainer width="100%" height={300}>
+                                                <BarChart data={engagementOverTime}>
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
+                                                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                                                    <YAxis tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} tickFormatter={(v) => fmtNum(v)} />
+                                                    <Tooltip content={<NumTooltip />} />
+                                                    <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
+                                                    <Bar dataKey="impressions" name="Impressions" fill={ENGAGEMENT_COLORS.impressions} radius={[2, 2, 0, 0]} />
+                                                    <Bar dataKey="likes" name="Likes" fill={ENGAGEMENT_COLORS.likes} radius={[2, 2, 0, 0]} />
+                                                    <Bar dataKey="comments" name="Comments" fill={ENGAGEMENT_COLORS.comments} radius={[2, 2, 0, 0]} />
+                                                    <Bar dataKey="bookmarks" name="Bookmarks" fill={ENGAGEMENT_COLORS.bookmarks} radius={[2, 2, 0, 0]} />
+                                                    <Bar dataKey="retweets" name="Reposts" fill={ENGAGEMENT_COLORS.retweets} radius={[2, 2, 0, 0]} />
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    </div>
                                 </div>
                             )}
 
                             {/* Two Column: Revenue by Account + Payment Status */}
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                <div className="bg-surface border border-border-light rounded-xl p-4 sm:p-6">
+                                <div className="bg-surface border border-border-light rounded-xl p-4 sm:p-6 overflow-hidden">
                                     <h3 className="text-sm font-semibold text-foreground mb-4">Revenue by Account</h3>
-                                    <ResponsiveContainer width="100%" height={260}>
-                                        <BarChart data={revenueByAccount} layout="vertical">
-                                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
-                                            <XAxis type="number" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v}`} />
-                                            <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "var(--text-secondary)" }} axisLine={false} tickLine={false} width={100} />
-                                            <Tooltip content={<MoneyTooltip />} />
-                                            <Bar dataKey="revenue" name="Revenue" radius={[0, 4, 4, 0]}>
-                                                {revenueByAccount.map((_, i) => (<Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />))}
-                                            </Bar>
-                                        </BarChart>
-                                    </ResponsiveContainer>
+                                    <div className="w-full -ml-4 sm:ml-0">
+                                        <ResponsiveContainer width="100%" height={260}>
+                                            <BarChart data={revenueByAccount} layout="vertical">
+                                                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
+                                                <XAxis type="number" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v}`} />
+                                                <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "var(--text-secondary)" }} axisLine={false} tickLine={false} width={100} />
+                                                <Tooltip content={<MoneyTooltip />} />
+                                                <Bar dataKey="revenue" name="Revenue" radius={[0, 4, 4, 0]}>
+                                                    {revenueByAccount.map((_, i) => (<Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />))}
+                                                </Bar>
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
                                 </div>
                                 <div className="bg-surface border border-border-light rounded-xl p-4 sm:p-6">
                                     <h3 className="text-sm font-semibold text-foreground mb-4">Payment Status</h3>
@@ -516,29 +526,35 @@ export default function AnalyticsPage() {
 
                             {/* Two Column: Top Artists + Promo Volume */}
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                <div className="bg-surface border border-border-light rounded-xl p-4 sm:p-6">
+                                <div className="bg-surface border border-border-light rounded-xl p-4 sm:p-6 overflow-hidden">
                                     <h3 className="text-sm font-semibold text-foreground mb-4">Top Artists by Spend</h3>
-                                    <ResponsiveContainer width="100%" height={280}>
-                                        <BarChart data={topArtists} layout="vertical">
-                                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
-                                            <XAxis type="number" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v}`} />
-                                            <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "var(--text-secondary)" }} axisLine={false} tickLine={false} width={100} />
-                                            <Tooltip content={<MoneyTooltip />} />
-                                            <Bar dataKey="spend" name="Total Spend" radius={[0, 4, 4, 0]} fill="#818cf8" />
-                                        </BarChart>
-                                    </ResponsiveContainer>
+                                    <div className="w-full -ml-4 sm:ml-0">
+                                        <ResponsiveContainer width="100%" height={280}>
+                                            <BarChart data={topArtists} layout="vertical">
+                                                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
+                                                <XAxis type="number" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v}`} />
+                                                <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "var(--text-secondary)" }} axisLine={false} tickLine={false} width={100} />
+                                                <Tooltip content={<MoneyTooltip />} />
+                                                <Bar dataKey="spend" name="Total Spend" radius={[0, 4, 4, 0]} fill="#818cf8" />
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
                                 </div>
-                                <div className="bg-surface border border-border-light rounded-xl p-4 sm:p-6">
+                                <div className="bg-surface border border-border-light rounded-xl p-4 sm:p-6 overflow-hidden">
                                     <h3 className="text-sm font-semibold text-foreground mb-4">Promo Volume</h3>
-                                    <ResponsiveContainer width="100%" height={280}>
-                                        <AreaChart data={promoVolume}>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
-                                            <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
-                                            <YAxis tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} allowDecimals={false} />
-                                            <Tooltip content={<SimplePieTooltip />} />
-                                            <Area type="monotone" dataKey="count" stroke="var(--accent)" fill="var(--accent-light)" strokeWidth={2} name="Promos" />
-                                        </AreaChart>
-                                    </ResponsiveContainer>
+                                    <div className="w-full overflow-x-auto">
+                                        <div className="min-w-[400px]">
+                                            <ResponsiveContainer width="100%" height={280}>
+                                                <AreaChart data={promoVolume}>
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
+                                                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                                                    <YAxis tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} allowDecimals={false} />
+                                                    <Tooltip content={<SimplePieTooltip />} />
+                                                    <Area type="monotone" dataKey="count" stroke="var(--accent)" fill="var(--accent-light)" strokeWidth={2} name="Promos" />
+                                                </AreaChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -562,22 +578,24 @@ export default function AnalyticsPage() {
                             )}
 
                             {/* Revenue by Promoter */}
-                            <div className="bg-surface border border-border-light rounded-xl p-4 sm:p-6">
+                            <div className="bg-surface border border-border-light rounded-xl p-4 sm:p-6 overflow-hidden">
                                 <h3 className="text-sm font-semibold text-foreground mb-4">Revenue by Promoter</h3>
                                 {revenueByPromoter.length === 0 ? (
                                     <p className="text-sm text-text-muted py-8 text-center">No promoter data available.</p>
                                 ) : (
-                                    <ResponsiveContainer width="100%" height={Math.max(200, revenueByPromoter.length * 40)}>
-                                        <BarChart data={revenueByPromoter} layout="vertical">
-                                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
-                                            <XAxis type="number" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v}`} />
-                                            <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "var(--text-secondary)" }} axisLine={false} tickLine={false} width={120} />
-                                            <Tooltip content={<MoneyTooltip />} />
-                                            <Bar dataKey="revenue" name="Revenue" radius={[0, 4, 4, 0]}>
-                                                {revenueByPromoter.map((_, i) => (<Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} fillOpacity={1 - (i * 0.08)} />))}
-                                            </Bar>
-                                        </BarChart>
-                                    </ResponsiveContainer>
+                                    <div className="w-full -ml-4 sm:ml-0">
+                                        <ResponsiveContainer width="100%" height={Math.max(200, revenueByPromoter.length * 40)}>
+                                            <BarChart data={revenueByPromoter} layout="vertical">
+                                                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
+                                                <XAxis type="number" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v}`} />
+                                                <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "var(--text-secondary)" }} axisLine={false} tickLine={false} width={120} />
+                                                <Tooltip content={<MoneyTooltip />} />
+                                                <Bar dataKey="revenue" name="Revenue" radius={[0, 4, 4, 0]}>
+                                                    {revenueByPromoter.map((_, i) => (<Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} fillOpacity={1 - (i * 0.08)} />))}
+                                                </Bar>
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
                                 )}
                             </div>
 
