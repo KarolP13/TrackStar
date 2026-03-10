@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Promo } from "@/lib/types";
 
 interface SummaryCardsProps {
@@ -9,10 +10,14 @@ interface SummaryCardsProps {
 }
 
 export default function SummaryCards({ promos, onFilterStatus, currentFilter }: SummaryCardsProps) {
-    const totalPromos = promos.length;
+    const [countBundles, setCountBundles] = useState(true);
+
+    const getCount = (p: Promo) => countBundles && p.isBundle && p.bundleCount ? p.bundleCount : 1;
+
+    const totalPromos = promos.reduce((sum, p) => sum + getCount(p), 0);
     const totalRevenue = promos.reduce((sum, p) => sum + p.paymentAmount, 0);
-    const pendingCount = promos.filter((p) => p.paymentStatus === "Pending").length;
-    const paidCount = promos.filter((p) => p.paymentStatus === "Paid").length;
+    const pendingCount = promos.filter((p) => p.paymentStatus === "Pending").reduce((sum, p) => sum + getCount(p), 0);
+    const paidCount = promos.filter((p) => p.paymentStatus === "Paid").reduce((sum, p) => sum + getCount(p), 0);
 
     const cards = [
         {
@@ -65,30 +70,38 @@ export default function SummaryCards({ promos, onFilterStatus, currentFilter }: 
     ];
 
     return (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            {cards.map((card) => {
-                const isSelected = card.filterVal && currentFilter === card.filterVal;
-                return (
-                    <div
-                        key={card.label}
-                        onClick={() => card.filterVal && onFilterStatus(card.filterVal)}
-                        className={`bg-surface border rounded-xl p-3.5 sm:p-5 transition-all duration-300 group
+        <div className="space-y-3 sm:space-y-4">
+            <div className="flex justify-end">
+                <label className="flex items-center gap-2 text-[11px] sm:text-xs text-text-muted cursor-pointer hover:text-foreground transition-colors">
+                    <input type="checkbox" checked={countBundles} onChange={(e) => setCountBundles(e.target.checked)} className="w-3.5 h-3.5 rounded border-border-light accent-accent cursor-pointer" />
+                    Count full bundle sizes
+                </label>
+            </div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                {cards.map((card) => {
+                    const isSelected = card.filterVal && currentFilter === card.filterVal;
+                    return (
+                        <div
+                            key={card.label}
+                            onClick={() => card.filterVal && onFilterStatus(card.filterVal)}
+                            className={`bg-surface border rounded-xl p-3.5 sm:p-5 transition-all duration-300 group
                             ${card.filterVal ? "cursor-pointer hover:bg-surface-hover hover:border-accent/50 selection:bg-none" : ""} 
                             ${isSelected ? "border-accent/50 bg-accent/5 ring-1 ring-accent/20" : "border-border-light"}
                         `}
-                    >
-                        <div className="flex items-center justify-between mb-2 sm:mb-3">
-                            <span className="text-[10px] sm:text-xs text-text-muted uppercase tracking-wider font-medium">
-                                {card.label}
-                            </span>
-                            <div className={`${card.bg} ${card.color} p-1.5 sm:p-2 rounded-lg`}>
-                                {card.icon}
+                        >
+                            <div className="flex items-center justify-between mb-2 sm:mb-3">
+                                <span className="text-[10px] sm:text-xs text-text-muted uppercase tracking-wider font-medium">
+                                    {card.label}
+                                </span>
+                                <div className={`${card.bg} ${card.color} p-1.5 sm:p-2 rounded-lg`}>
+                                    {card.icon}
+                                </div>
                             </div>
+                            <p className={`text-lg sm:text-2xl font-bold ${card.color}`}>{card.value}</p>
                         </div>
-                        <p className={`text-lg sm:text-2xl font-bold ${card.color}`}>{card.value}</p>
-                    </div>
-                );
-            })}
+                    );
+                })}
+            </div>
         </div>
     );
 }

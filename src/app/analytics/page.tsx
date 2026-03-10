@@ -40,7 +40,8 @@ function getDateRangeBounds(range: DateRange): { start: Date | null; end: Date |
     const now = new Date();
     if (range === "this_month") {
         const start = new Date(now.getFullYear(), now.getMonth(), 1);
-        return { start, end: null };
+        const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+        return { start, end };
     }
     if (range === "last_month") {
         const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -51,7 +52,7 @@ function getDateRangeBounds(range: DateRange): { start: Date | null; end: Date |
     const start = new Date(now);
     start.setDate(start.getDate() - days);
     start.setHours(0, 0, 0, 0);
-    return { start, end: null };
+    return { start, end: new Date(now) };
 }
 
 function getWeekKey(date: Date): string {
@@ -68,6 +69,22 @@ function getMonthKey(date: Date): string {
 
 function getDayKey(date: Date): string {
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function generateTimeKeys(start: Date, end: Date, timeView: TimeView): string[] {
+    const keys: string[] = [];
+    const current = new Date(start);
+    current.setHours(0, 0, 0, 0);
+    const endMs = end.getTime();
+
+    while (current.getTime() <= endMs) {
+        const key = timeView === "daily" ? getDayKey(current) : timeView === "weekly" ? getWeekKey(current) : getMonthKey(current);
+        if (keys.length === 0 || keys[keys.length - 1] !== key) {
+            keys.push(key);
+        }
+        current.setDate(current.getDate() + 1);
+    }
+    return keys;
 }
 
 function fmtNum(n: number): string {
@@ -123,6 +140,7 @@ export default function AnalyticsPage() {
     const [timeView, setTimeView] = useState<TimeView>("weekly");
     const [leaderboardSort, setLeaderboardSort] = useState<LeaderboardSort>("revenue");
     const [leaderboardDir, setLeaderboardDir] = useState<"asc" | "desc">("desc");
+    const [countBundles, setCountBundles] = useState(true);
     // Filters
     const [filterPromoter, setFilterPromoter] = useState("All");
     const [filterAccount, setFilterAccount] = useState("All");
@@ -162,9 +180,25 @@ export default function AnalyticsPage() {
 
     const hasActiveFilters = filterPromoter !== "All" || filterAccount !== "All";
 
+    const getCount = (p: Promo) => countBundles && p.isBundle && p.bundleCount ? p.bundleCount : 1;
+
+    const chartTimeKeys = useMemo(() => {
+        const bounds = getDateRangeBounds(dateRange);
+        let start = bounds.start, end = bounds.end;
+        if (!start || !end) {
+            if (filteredPromos.length > 0) {
+                start = new Date(Math.min(...filteredPromos.map(p => p.promoDate?.toMillis() || Date.now())));
+                end = new Date(Math.max(...filteredPromos.map(p => p.promoDate?.toMillis() || Date.now())));
+            } else {
+                start = new Date(); end = new Date();
+            }
+        }
+        return generateTimeKeys(start, end, timeView);
+    }, [dateRange, filteredPromos, timeView]);
+
     // ── Summary Stats ──────────────────────────
     const summaryStats = useMemo(() => {
-        const totalPromosCount = filteredPromos.length;
+        const totalPromosCount = filteredPromos.reduce((sum, p) => sum + getCount(p), 0);
         const totalRevenue = filteredPromos.reduce((sum, p) => sum + p.paymentAmount, 0);
         const avgValue = totalPromosCount > 0 ? totalRevenue / totalPromosCount : 0;
 
@@ -185,7 +219,7 @@ export default function AnalyticsPage() {
         const topPromoterAmount = topPromoterEntry?.[1] || 0;
 
         return { totalRevenue, avgValue, mostActiveAccount, mostPromotedArtist, topPromoterName, topPromoterAmount };
-    }, [filteredPromos]);
+    }, [filteredPromos, countBundles]);
 
     // ── Engagement Summary ───────────────────────
     const engagementStats = useMemo(() => {
@@ -207,14 +241,16 @@ export default function AnalyticsPage() {
     // ── Chart: Revenue Over Time ──────────────
     const revenueOverTime = useMemo(() => {
         const buckets: Record<string, number> = {};
+        chartTimeKeys.forEach(k => buckets[k] = 0);
         filteredPromos.forEach((p) => {
             const date = p.promoDate?.toDate();
             if (!date) return;
             const key = timeView === "daily" ? getDayKey(date) : timeView === "weekly" ? getWeekKey(date) : getMonthKey(date);
-            buckets[key] = (buckets[key] || 0) + p.paymentAmount;
+            if (buckets[key] !== undefined) buckets[key] += p.paymentAmount;
+            else buckets[key] = p.paymentAmount;
         });
-        return Object.entries(buckets).map(([name, revenue]) => ({ name, revenue })).reverse();
-    }, [filteredPromos, timeView]);
+        return chartTimeKeys.map(key => ({ name: key, revenue: buckets[key] || 0 }));
+    }, [filteredPromos, timeView, chartTimeKeys]);
 
     // ── Chart: Revenue By Account ──────────────
     const revenueByAccount = useMemo(() => {
@@ -233,21 +269,23 @@ export default function AnalyticsPage() {
     // ── Chart: Payment Status ──────────────────
     const paymentStatus = useMemo(() => {
         const counts: Record<string, number> = { Paid: 0, Pending: 0, Overdue: 0 };
-        filteredPromos.forEach((p) => { counts[p.paymentStatus] = (counts[p.paymentStatus] || 0) + 1; });
+        filteredPromos.forEach((p) => { counts[p.paymentStatus] = (counts[p.paymentStatus] || 0) + getCount(p); });
         return Object.entries(counts).filter(([, v]) => v > 0).map(([name, value]) => ({ name, value }));
-    }, [filteredPromos]);
+    }, [filteredPromos, countBundles]);
 
     // ── Chart: Promo Volume Over Time ──────────
     const promoVolume = useMemo(() => {
         const buckets: Record<string, number> = {};
+        chartTimeKeys.forEach(k => buckets[k] = 0);
         filteredPromos.forEach((p) => {
             const date = p.promoDate?.toDate();
             if (!date) return;
             const key = timeView === "daily" ? getDayKey(date) : timeView === "weekly" ? getWeekKey(date) : getMonthKey(date);
-            buckets[key] = (buckets[key] || 0) + 1;
+            if (buckets[key] !== undefined) buckets[key] += getCount(p);
+            else buckets[key] = getCount(p);
         });
-        return Object.entries(buckets).map(([name, count]) => ({ name, count })).reverse();
-    }, [filteredPromos, timeView]);
+        return chartTimeKeys.map(key => ({ name: key, count: buckets[key] || 0 }));
+    }, [filteredPromos, timeView, countBundles, chartTimeKeys]);
 
     // ── Chart: Revenue by Promoter ─────────────
     const revenueByPromoter = useMemo(() => {
@@ -259,6 +297,7 @@ export default function AnalyticsPage() {
     // ── Chart: Engagement Over Time ────────────
     const engagementOverTime = useMemo(() => {
         const buckets: Record<string, { impressions: number; likes: number; comments: number; bookmarks: number; retweets: number }> = {};
+        chartTimeKeys.forEach(k => buckets[k] = { impressions: 0, likes: 0, comments: 0, bookmarks: 0, retweets: 0 });
         filteredPromos.forEach((p) => {
             if (!p.impressions && !p.likes && !p.comments && !p.bookmarks && !p.retweets) return;
             const date = p.promoDate?.toDate();
@@ -271,8 +310,8 @@ export default function AnalyticsPage() {
             buckets[key].bookmarks += p.bookmarks || 0;
             buckets[key].retweets += p.retweets || 0;
         });
-        return Object.entries(buckets).map(([name, data]) => ({ name, ...data })).reverse();
-    }, [filteredPromos, timeView]);
+        return chartTimeKeys.map(key => ({ name: key, ...(buckets[key] || {}) }));
+    }, [filteredPromos, timeView, chartTimeKeys]);
 
     // ── Chart: Engagement by Promoter ──────────
     const engagementByPromoter = useMemo(() => {
@@ -297,7 +336,7 @@ export default function AnalyticsPage() {
         filteredPromos.forEach((p) => {
             if (!dataMap[p.promoterName]) dataMap[p.promoterName] = { count: 0, revenue: 0, methods: {}, impressions: 0, likes: 0 };
             const d = dataMap[p.promoterName];
-            d.count += 1;
+            d.count += getCount(p);
             d.revenue += p.paymentAmount;
             d.methods[p.paymentMethod] = (d.methods[p.paymentMethod] || 0) + 1;
             d.impressions += p.impressions || 0;
@@ -317,7 +356,7 @@ export default function AnalyticsPage() {
             }
         });
         return rows;
-    }, [filteredPromos, leaderboardSort, leaderboardDir]);
+    }, [filteredPromos, leaderboardSort, leaderboardDir, countBundles]);
 
     const handleLeaderboardSort = (field: LeaderboardSort) => {
         if (leaderboardSort === field) setLeaderboardDir(leaderboardDir === "desc" ? "asc" : "desc");
@@ -350,10 +389,16 @@ export default function AnalyticsPage() {
                             <h1 className="text-xl sm:text-2xl font-bold text-foreground">Analytics</h1>
                             <p className="text-xs sm:text-sm text-text-muted mt-0.5">Insights from your promo data</p>
                         </div>
-                        <div className="flex flex-wrap gap-2">
-                            {dateRangeOptions.map((opt) => (
-                                <button key={opt.value} onClick={() => setDateRange(opt.value)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${dateRange === opt.value ? "bg-accent-light text-accent border border-accent/30" : "bg-surface text-text-muted border border-border-light hover:text-text-secondary"}`}>{opt.label}</button>
-                            ))}
+                        <div className="flex flex-col sm:items-end gap-2">
+                            <label className="flex items-center gap-2 text-[11px] sm:text-xs text-text-muted cursor-pointer hover:text-foreground transition-colors pr-1">
+                                <input type="checkbox" checked={countBundles} onChange={(e) => setCountBundles(e.target.checked)} className="w-3.5 h-3.5 rounded border-border-light accent-accent cursor-pointer" />
+                                Count full bundle sizes
+                            </label>
+                            <div className="flex flex-wrap gap-2 justify-end">
+                                {dateRangeOptions.map((opt) => (
+                                    <button key={opt.value} onClick={() => setDateRange(opt.value)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${dateRange === opt.value ? "bg-accent-light text-accent border border-accent/30" : "bg-surface text-text-muted border border-border-light hover:text-text-secondary"}`}>{opt.label}</button>
+                                ))}
+                            </div>
                         </div>
                     </div>
 
