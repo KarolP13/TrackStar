@@ -86,3 +86,6 @@ export interface UserProfile {
     defaults: PromoDefaults;
     promoterPresets?: Record<string, PromoterPreset>;
 }
+
+export type DateRange = "7d" | "30d" | "90d" | "all" | "this_month" | "last_month";
+export type TimeView = "daily" | "weekly" | "monthly";

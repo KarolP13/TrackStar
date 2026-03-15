@@ -111,14 +111,6 @@ export default function DashboardPage() {
     await Promise.all(batchPromises);
   };
 
-  const handleImportPromos = async (promos: Omit<Promo, "id">[]) => {
-    const { collection, addDoc } = await import("firebase/firestore");
-    const { db } = await import("@/lib/firebase");
-    for (const p of promos) {
-      await addDoc(collection(db, "promos"), p);
-    }
-  };
-
   const handleOpenNew = () => {
     setEditingPromo(null);
     setIsDuplicate(false);
@@ -140,71 +132,73 @@ export default function DashboardPage() {
     <ProtectedRoute>
       <DashboardLayout>
         <div className="max-w-[100vw] overflow-hidden px-1 sm:px-0">
-          {/* Page Header */}
-          <div className="flex items-center justify-between gap-4 mb-6 sm:mb-8">
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-foreground">Dashboard</h1>
-              <p className="text-xs sm:text-sm text-text-muted mt-0.5 sm:mt-1">
-                Manage your promotions
-              </p>
+          <div className="animate-fade-in">
+            {/* Page Header */}
+            <div className="flex items-center justify-between gap-4 mb-6 sm:mb-8">
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold text-foreground">Dashboard</h1>
+                <p className="text-xs sm:text-sm text-text-muted mt-0.5 sm:mt-1">
+                  Manage your promotions
+                </p>
+              </div>
+              <div className="hidden sm:flex items-center gap-2">
+                <button
+                  onClick={() => setImportOpen(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border-light bg-surface hover:bg-surface-hover text-text-secondary text-sm font-medium transition-all"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                  </svg>
+                  Import
+                </button>
+                <button
+                  onClick={handleOpenNew}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-accent hover:bg-accent/90 text-white text-sm font-medium transition-all shadow-lg shadow-accent/20 hover:shadow-accent/30"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                  </svg>
+                  Add Promo
+                </button>
+              </div>
             </div>
-            <div className="hidden sm:flex items-center gap-2">
-              <button
-                onClick={() => setImportOpen(true)}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border-light bg-surface hover:bg-surface-hover text-text-secondary text-sm font-medium transition-all"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-                </svg>
-                Import
-              </button>
-              <button
-                onClick={handleOpenNew}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-accent hover:bg-accent/90 text-white text-sm font-medium transition-all shadow-lg shadow-accent/20 hover:shadow-accent/30"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-                Add Promo
-              </button>
-            </div>
+
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-20">
+                <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin mb-4" />
+                <p className="text-text-muted text-sm">Loading data...</p>
+              </div>
+            ) : (
+              <>
+                {/* Summary Cards */}
+                <div className="mb-5 sm:mb-8">
+                  <SummaryCards promos={promos} onFilterStatus={setFilterStatus} currentFilter={filterStatus} />
+                </div>
+
+                {/* Promo Table */}
+                <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl overflow-hidden">
+                  <div className="px-4 md:px-5 py-4 border-b border-white/[0.06]">
+                    <h2 className="text-base font-semibold text-white">
+                      All Promotions
+                    </h2>
+                  </div>
+                  <div className="p-4 md:p-5">
+                    <PromoTable
+                      promos={promos}
+                      onEdit={handleEdit}
+                      onDelete={handleDelete}
+                      onDuplicate={handleDuplicate}
+                      onCancelSeries={handleCancelSeries}
+                      onBulkUpdateStatus={handleBulkUpdateStatus}
+                      onLinkBundle={handleLinkBundle}
+                      filterStatus={filterStatus}
+                      setFilterStatus={setFilterStatus}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
           </div>
-
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin mb-4" />
-              <p className="text-text-muted text-sm">Loading data...</p>
-            </div>
-          ) : (
-            <>
-              {/* Summary Cards */}
-              <div className="mb-5 sm:mb-8">
-                <SummaryCards promos={promos} onFilterStatus={setFilterStatus} currentFilter={filterStatus} />
-              </div>
-
-              {/* Promo Table */}
-              <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl overflow-hidden">
-                <div className="px-4 md:px-5 py-4 border-b border-white/[0.06]">
-                  <h2 className="text-base font-semibold text-white">
-                    All Promotions
-                  </h2>
-                </div>
-                <div className="p-4 md:p-5">
-                  <PromoTable
-                    promos={promos}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
-                    onDuplicate={handleDuplicate}
-                    onCancelSeries={handleCancelSeries}
-                    onBulkUpdateStatus={handleBulkUpdateStatus}
-                    onLinkBundle={handleLinkBundle}
-                    filterStatus={filterStatus}
-                    setFilterStatus={setFilterStatus}
-                  />
-                </div>
-              </div>
-            </>
-          )}
 
           {/* Add/Edit/Duplicate Modal */}
           <PromoModal
@@ -231,14 +225,15 @@ export default function DashboardPage() {
           <ImportModal
             isOpen={importOpen}
             onClose={() => setImportOpen(false)}
-            onImport={handleImportPromos}
+            onComplete={() => setImportOpen(false)}
             userId={user?.uid || ""}
+            defaults={profile?.defaults}
           />
 
-          {/* Mobile FAB — Add Promo */}
+          {/* Floating Add Promo Button */}
           <button
             onClick={handleOpenNew}
-            className="sm:hidden fixed right-4 bottom-20 z-20 w-14 h-14 rounded-full bg-accent shadow-lg shadow-accent/30 flex items-center justify-center active:scale-95 transition-transform"
+            className="fixed right-4 bottom-20 md:right-8 md:bottom-8 z-20 w-14 h-14 rounded-full bg-accent shadow-lg shadow-accent/30 flex items-center justify-center active:scale-95 hover:scale-105 transition-transform"
             aria-label="Add Promo"
           >
             <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>

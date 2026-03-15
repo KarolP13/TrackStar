@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Promo } from "./types";
+import { ExportConfig } from "@/components/AnalyticsExportModal";
 
 function formatDate(ts: { toDate: () => Date } | undefined): string {
     if (!ts || !ts.toDate) return "—";
@@ -130,7 +131,7 @@ export function exportPromoTablePDF(promos: Promo[], title?: string) {
 
 // ── Export Analytics Report as PDF ────────────────────────
 
-export function exportAnalyticsPDF(promos: Promo[]) {
+export function exportAnalyticsPDF(promos: Promo[], countBundles: boolean, config: ExportConfig, chartImages: Record<string, string>) {
     const doc = new jsPDF();
     addHeader(doc);
 
@@ -138,123 +139,206 @@ export function exportAnalyticsPDF(promos: Promo[]) {
     doc.setTextColor(30, 30, 30);
     doc.text("Analytics Report", 14, 45);
 
-    const totalPromosCount = promos.reduce((sum, p) => sum + (p.isBundle && p.bundleCount ? p.bundleCount : 1), 0);
+    const getCount = (p: Promo) => countBundles && p.isBundle && p.bundleCount ? p.bundleCount : 1;
+    const totalPromosCount = promos.reduce((sum, p) => sum + getCount(p), 0);
 
     doc.setFontSize(8);
     doc.setTextColor(120, 120, 120);
-    doc.text(`Based on ${totalPromosCount} promo${totalPromosCount !== 1 ? "s" : ""}`, 14, 51);
+    doc.text(`Based on ${totalPromosCount} promo${totalPromosCount !== 1 ? "s" : ""} (${config.dateRange})`, 14, 51);
 
     let y = 60;
 
+    const checkPageBreak = (neededHeight: number) => {
+        if (y + neededHeight > doc.internal.pageSize.height - 20) {
+            doc.addPage();
+            addHeader(doc);
+            y = 45;
+        }
+    };
+
     // ── Summary Stats ──
-    const totalRevenue = promos.reduce((s, p) => s + p.paymentAmount, 0);
-    const avgValue = totalPromosCount > 0 ? totalRevenue / totalPromosCount : 0;
+    if (config.includeSummary) {
+        checkPageBreak(30);
+        const totalRevenue = promos.reduce((s, p) => s + p.paymentAmount, 0);
+        const avgValue = totalPromosCount > 0 ? totalRevenue / totalPromosCount : 0;
 
-    doc.setFontSize(10);
-    doc.setTextColor(30, 30, 30);
-    doc.text("Overview", 14, y);
-    y += 8;
+        doc.setFontSize(10);
+        doc.setTextColor(30, 30, 30);
+        doc.text("Overview", 14, y);
+        y += 8;
 
-    doc.setFontSize(8);
-    doc.setTextColor(80, 80, 80);
-    doc.text(`Total Revenue: $${totalRevenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, 14, y); y += 5;
-    doc.text(`Average Promo Value: $${avgValue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, 14, y); y += 5;
-    doc.text(`Total Promos: ${totalPromosCount}`, 14, y); y += 10;
+        doc.setFontSize(8);
+        doc.setTextColor(80, 80, 80);
+        doc.text(`Total Revenue: $${totalRevenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, 14, y); y += 5;
+        doc.text(`Average Promo Value: $${avgValue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, 14, y); y += 5;
+        doc.text(`Total Promos: ${totalPromosCount}`, 14, y); y += 10;
+    }
+
+    // ── Revenue Time Chart ──
+    if (config.includeRevenueTime && chartImages.revenueTime) {
+        checkPageBreak(80);
+        doc.setFontSize(10);
+        doc.setTextColor(30, 30, 30);
+        doc.text("Revenue Over Time", 14, y);
+        y += 6;
+        doc.addImage(chartImages.revenueTime, "JPEG", 14, y, 180, 70);
+        y += 80;
+    }
+
+    // ── Promo Volume Chart ──
+    if (config.includePromoVolume && chartImages.promoVolume) {
+        checkPageBreak(80);
+        doc.setFontSize(10);
+        doc.setTextColor(30, 30, 30);
+        doc.text("Promo Volume Over Time", 14, y);
+        y += 6;
+        doc.addImage(chartImages.promoVolume, "JPEG", 14, y, 180, 70);
+        y += 80;
+    }
 
     // ── Payment Status ──
-    doc.setFontSize(10);
-    doc.setTextColor(30, 30, 30);
-    doc.text("Payment Status Breakdown", 14, y);
-    y += 6;
+    if (config.includePaymentStatus) {
+        checkPageBreak(40);
+        doc.setFontSize(10);
+        doc.setTextColor(30, 30, 30);
+        doc.text("Payment Status Breakdown", 14, y);
+        y += 6;
 
-    const statusCounts: Record<string, { count: number; amount: number }> = {};
-    promos.forEach((p) => {
-        if (!statusCounts[p.paymentStatus]) statusCounts[p.paymentStatus] = { count: 0, amount: 0 };
-        statusCounts[p.paymentStatus].count += (p.isBundle && p.bundleCount ? p.bundleCount : 1);
-        statusCounts[p.paymentStatus].amount += p.paymentAmount;
-    });
+        const statusCounts: Record<string, { count: number; amount: number }> = {};
+        promos.forEach((p) => {
+            if (!statusCounts[p.paymentStatus]) statusCounts[p.paymentStatus] = { count: 0, amount: 0 };
+            statusCounts[p.paymentStatus].count += getCount(p);
+            statusCounts[p.paymentStatus].amount += p.paymentAmount;
+        });
 
-    autoTable(doc, {
-        startY: y,
-        head: [["Status", "Count", "Amount"]],
-        body: Object.entries(statusCounts).map(([status, { count, amount }]) => [
-            status,
-            count.toString(),
-            `$${amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
-        ]),
-        theme: "grid",
-        headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255], fontSize: 8 },
-        bodyStyles: { fontSize: 8, textColor: [50, 50, 50] },
-        margin: { left: 14, right: 14 },
-        tableWidth: 120,
-        didDrawPage: (data) => { addFooter(doc, data.pageNumber); },
-    });
+        autoTable(doc, {
+            startY: y,
+            head: [["Status", "Count", "Amount"]],
+            body: Object.entries(statusCounts).map(([status, { count, amount }]) => [
+                status,
+                count.toString(),
+                `$${amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
+            ]),
+            theme: "grid",
+            headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255], fontSize: 8 },
+            bodyStyles: { fontSize: 8, textColor: [50, 50, 50] },
+            margin: { left: 14, right: 14 },
+            tableWidth: 120,
+            didDrawPage: (data) => { addFooter(doc, data.pageNumber); },
+        });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    y = (doc as any).lastAutoTable?.finalY + 10 || y + 35;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        y = (doc as any).lastAutoTable?.finalY + 10 || y + 35;
+    }
 
     // ── Revenue by Account ──
-    const accountRevenue: Record<string, number> = {};
-    promos.forEach((p) => {
-        accountRevenue[p.accountHandle] = (accountRevenue[p.accountHandle] || 0) + p.paymentAmount;
-    });
+    if (config.includeRevenueAccount) {
+        checkPageBreak(50);
+        const accountRevenue: Record<string, number> = {};
+        promos.forEach((p) => {
+            accountRevenue[p.accountHandle] = (accountRevenue[p.accountHandle] || 0) + p.paymentAmount;
+        });
 
-    doc.setFontSize(10);
-    doc.setTextColor(30, 30, 30);
-    doc.text("Revenue by Account", 14, y);
-    y += 6;
+        doc.setFontSize(10);
+        doc.setTextColor(30, 30, 30);
+        doc.text("Revenue by Account", 14, y);
+        y += 6;
 
-    autoTable(doc, {
-        startY: y,
-        head: [["Account", "Revenue", "Promos"]],
-        body: Object.entries(accountRevenue)
-            .sort((a, b) => b[1] - a[1])
-            .map(([account, revenue]) => [
-                account,
-                `$${revenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
-                promos.filter((p) => p.accountHandle === account).reduce((sum, p) => sum + (p.isBundle && p.bundleCount ? p.bundleCount : 1), 0).toString(),
-            ]),
-        theme: "grid",
-        headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255], fontSize: 8 },
-        bodyStyles: { fontSize: 8, textColor: [50, 50, 50] },
-        margin: { left: 14, right: 14 },
-        tableWidth: 140,
-        didDrawPage: (data) => { addFooter(doc, data.pageNumber); },
-    });
+        autoTable(doc, {
+            startY: y,
+            head: [["Account", "Revenue", "Promos"]],
+            body: Object.entries(accountRevenue)
+                .sort((a, b) => b[1] - a[1])
+                .map(([account, revenue]) => [
+                    account,
+                    `$${revenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
+                    promos.filter((p) => p.accountHandle === account).reduce((sum, p) => sum + getCount(p), 0).toString(),
+                ]),
+            theme: "grid",
+            headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255], fontSize: 8 },
+            bodyStyles: { fontSize: 8, textColor: [50, 50, 50] },
+            margin: { left: 14, right: 14 },
+            tableWidth: 140,
+            didDrawPage: (data) => { addFooter(doc, data.pageNumber); },
+        });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    y = (doc as any).lastAutoTable?.finalY + 10 || y + 35;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        y = (doc as any).lastAutoTable?.finalY + 10 || y + 35;
+    }
 
     // ── Top Artists ──
-    const artistSpend: Record<string, number> = {};
-    promos.forEach((p) => {
-        artistSpend[p.promoting] = (artistSpend[p.promoting] || 0) + p.paymentAmount;
-    });
+    if (config.includeTopArtists) {
+        checkPageBreak(50);
+        const artistSpend: Record<string, number> = {};
+        promos.forEach((p) => {
+            artistSpend[p.promoting] = (artistSpend[p.promoting] || 0) + p.paymentAmount;
+        });
 
-    doc.setFontSize(10);
-    doc.setTextColor(30, 30, 30);
-    doc.text("Top Artists by Spend", 14, y);
-    y += 6;
+        doc.setFontSize(10);
+        doc.setTextColor(30, 30, 30);
+        doc.text("Top Artists by Spend", 14, y);
+        y += 6;
 
-    autoTable(doc, {
-        startY: y,
-        head: [["Artist", "Total Spend", "Promos"]],
-        body: Object.entries(artistSpend)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 10)
-            .map(([artist, spend]) => [
-                artist,
-                `$${spend.toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
-                promos.filter((p) => p.promoting === artist).reduce((sum, p) => sum + (p.isBundle && p.bundleCount ? p.bundleCount : 1), 0).toString(),
-            ]),
-        theme: "grid",
-        headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255], fontSize: 8 },
-        bodyStyles: { fontSize: 8, textColor: [50, 50, 50] },
-        margin: { left: 14, right: 14 },
-        tableWidth: 140,
-        didDrawPage: (data) => { addFooter(doc, data.pageNumber); },
-    });
+        autoTable(doc, {
+            startY: y,
+            head: [["Artist", "Total Spend", "Promos"]],
+            body: Object.entries(artistSpend)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 10)
+                .map(([artist, spend]) => [
+                    artist,
+                    `$${spend.toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
+                    promos.filter((p) => p.promoting === artist).reduce((sum, p) => sum + getCount(p), 0).toString(),
+                ]),
+            theme: "grid",
+            headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255], fontSize: 8 },
+            bodyStyles: { fontSize: 8, textColor: [50, 50, 50] },
+            margin: { left: 14, right: 14 },
+            tableWidth: 140,
+            didDrawPage: (data) => { addFooter(doc, data.pageNumber); },
+        });
 
-    const filename = `TrackStar_Report_${new Date().toISOString().split("T")[0]}.pdf`;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        y = (doc as any).lastAutoTable?.finalY + 10 || y + 35;
+    }
+
+    // ── Promoter Leaderboard ──
+    if (config.includeLeaderboard) {
+        checkPageBreak(60);
+        const totalRev = promos.reduce((s, p) => s + p.paymentAmount, 0);
+        const dataMap: Record<string, { count: number; revenue: number; impressions: number }> = {};
+        promos.forEach((p) => {
+            if (!dataMap[p.promoterName]) dataMap[p.promoterName] = { count: 0, revenue: 0, impressions: 0 };
+            dataMap[p.promoterName].count += getCount(p);
+            dataMap[p.promoterName].revenue += p.paymentAmount;
+            dataMap[p.promoterName].impressions += p.impressions || 0;
+        });
+
+        doc.setFontSize(10);
+        doc.setTextColor(30, 30, 30);
+        doc.text("Promoter Leaderboard", 14, y);
+        y += 6;
+
+        autoTable(doc, {
+            startY: y,
+            head: [["Promoter", "Count", "Revenue", "Avg/Post", "% Total Rev"]],
+            body: Object.entries(dataMap)
+                .sort((a, b) => b[1].revenue - a[1].revenue)
+                .map(([name, d]) => [
+                    name,
+                    d.count.toString(),
+                    `$${d.revenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
+                    `$${(d.count > 0 ? d.revenue / d.count : 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
+                    `${(totalRev > 0 ? (d.revenue / totalRev) * 100 : 0).toFixed(1)}%`
+                ]),
+            theme: "grid",
+            headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255], fontSize: 8 },
+            bodyStyles: { fontSize: 8, textColor: [50, 50, 50] },
+            margin: { left: 14, right: 14 },
+            didDrawPage: (data) => { addFooter(doc, data.pageNumber); },
+        });
+    }
+
+    const filename = `TrackStar_Analytics_${new Date().toISOString().split("T")[0]}.pdf`;
     doc.save(filename);
 }

@@ -1,19 +1,20 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import DashboardLayout from "@/components/DashboardLayout";
-import { Promo } from "@/lib/types";
+import AnalyticsExportModal, { ExportConfig } from "@/components/AnalyticsExportModal";
+import { exportAnalyticsPDF } from "@/lib/pdfExport";
+import { Promo, DateRange, TimeView } from "@/lib/types";
 import { subscribeToPromos } from "@/lib/promos";
+import html2canvas from "html2canvas";
 import {
     LineChart, Line, BarChart, Bar, AreaChart, Area,
     PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid,
     Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 
-type DateRange = "7d" | "30d" | "90d" | "this_month" | "last_month" | "all";
-type TimeView = "daily" | "weekly" | "monthly";
 type LeaderboardSort = "revenue" | "count" | "avg" | "pct";
 
 const CHART_COLORS = [
@@ -141,6 +142,8 @@ export default function AnalyticsPage() {
     const [leaderboardSort, setLeaderboardSort] = useState<LeaderboardSort>("revenue");
     const [leaderboardDir, setLeaderboardDir] = useState<"asc" | "desc">("desc");
     const [countBundles, setCountBundles] = useState(true);
+    // Export Modal State
+    const [exportModalOpen, setExportModalOpen] = useState(false);
     // Filters
     const [filterPromoter, setFilterPromoter] = useState("All");
     const [filterAccount, setFilterAccount] = useState("All");
@@ -363,6 +366,54 @@ export default function AnalyticsPage() {
         else { setLeaderboardSort(field); setLeaderboardDir("desc"); }
     };
 
+    const handleExport = async (config: ExportConfig) => {
+        const originalDateRange = dateRange;
+        if (config.dateRange !== dateRange) {
+            setDateRange(config.dateRange);
+            await new Promise(resolve => setTimeout(resolve, 800));
+        }
+
+        const chartImages: Record<string, string> = {};
+
+        const captureChart = async (id: string) => {
+            const el = document.getElementById(id);
+            if (!el) return null;
+            try {
+                const canvas = await html2canvas(el, { scale: 2, backgroundColor: "#000000", windowWidth: el.scrollWidth, windowHeight: el.scrollHeight });
+                return canvas.toDataURL("image/jpeg", 0.9);
+            } catch (e) {
+                console.error("Failed to capture chart", id, e);
+                return null;
+            }
+        };
+
+        if (config.includeRevenueTime) {
+            const img = await captureChart("chart-revenue-time");
+            if (img) chartImages.revenueTime = img;
+        }
+        if (config.includePromoVolume) {
+            const img = await captureChart("chart-promo-volume");
+            if (img) chartImages.promoVolume = img;
+        }
+
+        const bounds = getDateRangeBounds(config.dateRange);
+        const exportPromos = promos.filter((p) => {
+            if (filterPromoter !== "All" && p.promoterName !== filterPromoter) return false;
+            if (filterAccount !== "All" && p.accountHandle !== filterAccount) return false;
+            const pd = p.promoDate?.toDate();
+            if (!pd) return false;
+            if (bounds.start && pd < bounds.start) return false;
+            if (bounds.end && pd > bounds.end) return false;
+            return true;
+        });
+
+        exportAnalyticsPDF(exportPromos, countBundles, config, chartImages);
+
+        if (config.dateRange !== originalDateRange) {
+            setDateRange(originalDateRange);
+        }
+    };
+
     const LeaderSortIcon = ({ field }: { field: LeaderboardSort }) => {
         if (leaderboardSort !== field) return <span className="text-white/20 ml-1">↕</span>;
         return <span className="text-accent ml-1">{leaderboardDir === "asc" ? "↑" : "↓"}</span>;
@@ -382,318 +433,326 @@ export default function AnalyticsPage() {
     return (
         <ProtectedRoute>
             <DashboardLayout>
-                <div className="animate-fade-in space-y-6 max-w-[100vw] overflow-hidden px-1 sm:px-0">
-                    {/* Header */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div>
-                            <h1 className="text-xl sm:text-2xl font-bold text-foreground">Analytics</h1>
-                            <p className="text-xs sm:text-sm text-text-muted mt-0.5">Insights from your promo data</p>
-                        </div>
-                        <div className="flex flex-col sm:items-end gap-2">
-                            <label className="flex items-center gap-2 text-[11px] sm:text-xs text-text-muted cursor-pointer hover:text-foreground transition-colors pr-1">
-                                <input type="checkbox" checked={countBundles} onChange={(e) => setCountBundles(e.target.checked)} className="w-3.5 h-3.5 rounded border-border-light accent-accent cursor-pointer" />
-                                Count full bundle sizes
-                            </label>
-                            <div className="flex flex-wrap gap-2 justify-end">
-                                {dateRangeOptions.map((opt) => (
-                                    <button key={opt.value} onClick={() => setDateRange(opt.value)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${dateRange === opt.value ? "bg-accent-light text-accent border border-accent/30" : "bg-surface text-text-muted border border-border-light hover:text-text-secondary"}`}>{opt.label}</button>
-                                ))}
+                <div className="max-w-[100vw] overflow-hidden px-1 sm:px-0">
+                    <div className="animate-fade-in space-y-6">
+                        {/* Header */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div>
+                                <h1 className="text-xl sm:text-2xl font-bold text-foreground">Analytics</h1>
+                                <p className="text-xs sm:text-sm text-text-muted mt-0.5">Insights from your promo data</p>
+                            </div>
+                            <div className="flex flex-col sm:items-end gap-2">
+                                <label className="flex items-center gap-2 text-[11px] sm:text-xs text-text-muted cursor-pointer hover:text-foreground transition-colors pr-1">
+                                    <input type="checkbox" checked={countBundles} onChange={(e) => setCountBundles(e.target.checked)} className="w-3.5 h-3.5 rounded border-border-light accent-accent cursor-pointer" />
+                                    Count full bundle sizes
+                                </label>
+                                <div className="flex flex-wrap gap-2 justify-end">
+                                    {dateRangeOptions.map((opt) => (
+                                        <button key={opt.value} onClick={() => setDateRange(opt.value)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${dateRange === opt.value ? "bg-accent-light text-accent border border-accent/30" : "bg-surface text-text-muted border border-border-light hover:text-text-secondary"}`}>{opt.label}</button>
+                                    ))}
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    {/* Filter Row */}
-                    <div className="flex flex-wrap items-center gap-2">
-                        <select value={filterPromoter} onChange={(e) => setFilterPromoter(e.target.value)} className={selectClass}>
-                            <option value="All">All Promoters</option>
-                            {uniquePromoters.map((p) => (<option key={p} value={p}>{p}</option>))}
-                        </select>
-                        <select value={filterAccount} onChange={(e) => setFilterAccount(e.target.value)} className={selectClass}>
-                            <option value="All">All Accounts</option>
-                            {uniqueAccounts.map((a) => (<option key={a} value={a}>{a}</option>))}
-                        </select>
-                        {hasActiveFilters && (
-                            <button onClick={() => { setFilterPromoter("All"); setFilterAccount("All"); }} className="text-xs text-accent hover:text-accent/80 transition-colors ml-1">Clear filters</button>
-                        )}
-                    </div>
-
-                    {loading ? (
-                        <div className="flex flex-col items-center justify-center py-20">
-                            <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin mb-4" />
-                            <p className="text-text-muted text-sm">Loading analytics...</p>
-                        </div>
-                    ) : filteredPromos.length === 0 ? (
-                        <div className="text-center py-20">
-                            <p className="text-text-muted text-sm">No promos match your filters.</p>
-                        </div>
-                    ) : (
-                        <>
-                            {/* Summary Stats — 5 cards */}
-                            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-                                <div className="bg-surface border border-border-light rounded-xl p-3.5 sm:p-5">
-                                    <span className="text-[10px] sm:text-xs text-text-muted uppercase tracking-wider font-medium">Period Revenue</span>
-                                    <p className="text-lg sm:text-2xl font-bold text-accent mt-1">${summaryStats.totalRevenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}</p>
-                                </div>
-                                <div className="bg-surface border border-border-light rounded-xl p-3.5 sm:p-5">
-                                    <span className="text-[10px] sm:text-xs text-text-muted uppercase tracking-wider font-medium">Avg Promo Value</span>
-                                    <p className="text-lg sm:text-2xl font-bold text-emerald-500 mt-1">${summaryStats.avgValue.toLocaleString("en-US", { minimumFractionDigits: 2 })}</p>
-                                </div>
-                                <div className="bg-surface border border-border-light rounded-xl p-3.5 sm:p-5">
-                                    <span className="text-[10px] sm:text-xs text-text-muted uppercase tracking-wider font-medium">Most Active</span>
-                                    <p className="text-base sm:text-lg font-bold text-purple-500 mt-1 truncate font-mono">{summaryStats.mostActiveAccount}</p>
-                                </div>
-                                <div className="bg-surface border border-border-light rounded-xl p-3.5 sm:p-5">
-                                    <span className="text-[10px] sm:text-xs text-text-muted uppercase tracking-wider font-medium">Top Artist</span>
-                                    <p className="text-base sm:text-lg font-bold text-amber-500 mt-1 truncate">{summaryStats.mostPromotedArtist}</p>
-                                </div>
-                                <div className="bg-surface border border-border-light rounded-xl p-3.5 sm:p-5 col-span-2 lg:col-span-1">
-                                    <span className="text-[10px] sm:text-xs text-text-muted uppercase tracking-wider font-medium">Top Promoter</span>
-                                    <p className="text-base sm:text-lg font-bold text-pink-500 mt-1 truncate">{summaryStats.topPromoterName}</p>
-                                    {summaryStats.topPromoterAmount > 0 && (<p className="text-xs text-text-muted mt-0.5">${summaryStats.topPromoterAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</p>)}
-                                </div>
-                            </div>
-
-                            {/* ── Engagement Summary Cards ── */}
-                            {hasAnyEngagement && (
-                                <div>
-                                    <h3 className="text-sm font-semibold text-foreground mb-3">Engagement Overview</h3>
-                                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-                                        <div className="bg-surface border border-border-light rounded-xl p-3 sm:p-4 text-center">
-                                            <span className="text-[10px] text-text-muted uppercase tracking-wider font-medium">Impressions</span>
-                                            <p className="text-lg sm:text-xl font-bold text-blue-400 mt-1">{fmtNum(engagementStats.totalImpressions)}</p>
-                                        </div>
-                                        <div className="bg-surface border border-border-light rounded-xl p-3 sm:p-4 text-center">
-                                            <span className="text-[10px] text-text-muted uppercase tracking-wider font-medium">Likes</span>
-                                            <p className="text-lg sm:text-xl font-bold text-red-400 mt-1">{fmtNum(engagementStats.totalLikes)}</p>
-                                        </div>
-                                        <div className="bg-surface border border-border-light rounded-xl p-3 sm:p-4 text-center">
-                                            <span className="text-[10px] text-text-muted uppercase tracking-wider font-medium">Comments</span>
-                                            <p className="text-lg sm:text-xl font-bold text-green-400 mt-1">{fmtNum(engagementStats.totalComments)}</p>
-                                        </div>
-                                        <div className="bg-surface border border-border-light rounded-xl p-3 sm:p-4 text-center">
-                                            <span className="text-[10px] text-text-muted uppercase tracking-wider font-medium">Bookmarks</span>
-                                            <p className="text-lg sm:text-xl font-bold text-amber-400 mt-1">{fmtNum(engagementStats.totalBookmarks)}</p>
-                                        </div>
-                                        <div className="bg-surface border border-border-light rounded-xl p-3 sm:p-4 text-center">
-                                            <span className="text-[10px] text-text-muted uppercase tracking-wider font-medium">Reposts</span>
-                                            <p className="text-lg sm:text-xl font-bold text-purple-400 mt-1">{fmtNum(engagementStats.totalRetweets)}</p>
-                                        </div>
-                                        <div className="bg-surface border border-border-light rounded-xl p-3 sm:p-4 text-center">
-                                            <span className="text-[10px] text-text-muted uppercase tracking-wider font-medium">Eng. Rate</span>
-                                            <p className="text-lg sm:text-xl font-bold text-cyan-400 mt-1">{engagementStats.engagementRate.toFixed(1)}%</p>
-                                            <p className="text-[10px] text-text-muted mt-0.5">{engagementStats.postsWithData} posts</p>
-                                        </div>
-                                    </div>
-                                </div>
+                        {/* Filter Row */}
+                        <div className="flex flex-wrap items-center gap-2">
+                            <select value={filterPromoter} onChange={(e) => setFilterPromoter(e.target.value)} className={selectClass}>
+                                <option value="All">All Promoters</option>
+                                {uniquePromoters.map((p) => (<option key={p} value={p}>{p}</option>))}
+                            </select>
+                            <select value={filterAccount} onChange={(e) => setFilterAccount(e.target.value)} className={selectClass}>
+                                <option value="All">All Accounts</option>
+                                {uniqueAccounts.map((a) => (<option key={a} value={a}>{a}</option>))}
+                            </select>
+                            {hasActiveFilters && (
+                                <button onClick={() => { setFilterPromoter("All"); setFilterAccount("All"); }} className="text-xs text-accent hover:text-accent/80 transition-colors ml-1">Clear filters</button>
                             )}
+                        </div>
 
-                            {/* Revenue Over Time */}
-                            <div className="bg-surface border border-border-light rounded-xl p-4 sm:p-6">
-                                <div className="flex items-center justify-between mb-4">
-                                    <h3 className="text-sm font-semibold text-foreground">Revenue Over Time</h3>
-                                    <div className="flex gap-1">
-                                        <button onClick={() => setTimeView("daily")} className={`px-2.5 py-1 rounded text-[10px] font-medium transition-all ${timeView === "daily" ? "bg-accent-light text-accent" : "text-text-muted hover:text-text-secondary"}`}>Daily</button>
-                                        <button onClick={() => setTimeView("weekly")} className={`px-2.5 py-1 rounded text-[10px] font-medium transition-all ${timeView === "weekly" ? "bg-accent-light text-accent" : "text-text-muted hover:text-text-secondary"}`}>Weekly</button>
-                                        <button onClick={() => setTimeView("monthly")} className={`px-2.5 py-1 rounded text-[10px] font-medium transition-all ${timeView === "monthly" ? "bg-accent-light text-accent" : "text-text-muted hover:text-text-secondary"}`}>Monthly</button>
-                                    </div>
-                                </div>
-                                <div className="w-full overflow-x-auto">
-                                    <div className="min-w-[500px]">
-                                        <ResponsiveContainer width="100%" height={280}>
-                                            <LineChart data={revenueOverTime}>
-                                                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
-                                                <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
-                                                <YAxis tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v}`} />
-                                                <Tooltip content={<MoneyTooltip />} />
-                                                <Line type="monotone" dataKey="revenue" stroke="var(--accent)" strokeWidth={2.5} dot={{ r: 4, fill: "var(--accent)" }} activeDot={{ r: 6, fill: "var(--accent)" }} name="Revenue" />
-                                            </LineChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                </div>
+                        {loading ? (
+                            <div className="flex flex-col items-center justify-center py-20">
+                                <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin mb-4" />
+                                <p className="text-text-muted text-sm">Loading analytics...</p>
                             </div>
+                        ) : filteredPromos.length === 0 ? (
+                            <div className="text-center py-20">
+                                <p className="text-text-muted text-sm">No promos match your filters.</p>
+                            </div>
+                        ) : (
+                            <>
+                                {/* Summary Stats — 5 cards */}
+                                <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+                                    <div className="bg-surface border border-border-light rounded-xl p-3.5 sm:p-5">
+                                        <span className="text-[10px] sm:text-xs text-text-muted uppercase tracking-wider font-medium">Period Revenue</span>
+                                        <p className="text-lg sm:text-2xl font-bold text-accent mt-1">${summaryStats.totalRevenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}</p>
+                                    </div>
+                                    <div className="bg-surface border border-border-light rounded-xl p-3.5 sm:p-5">
+                                        <span className="text-[10px] sm:text-xs text-text-muted uppercase tracking-wider font-medium">Avg Promo Value</span>
+                                        <p className="text-lg sm:text-2xl font-bold text-emerald-500 mt-1">${summaryStats.avgValue.toLocaleString("en-US", { minimumFractionDigits: 2 })}</p>
+                                    </div>
+                                    <div className="bg-surface border border-border-light rounded-xl p-3.5 sm:p-5">
+                                        <span className="text-[10px] sm:text-xs text-text-muted uppercase tracking-wider font-medium">Most Active</span>
+                                        <p className="text-base sm:text-lg font-bold text-purple-500 mt-1 truncate font-mono">{summaryStats.mostActiveAccount}</p>
+                                    </div>
+                                    <div className="bg-surface border border-border-light rounded-xl p-3.5 sm:p-5">
+                                        <span className="text-[10px] sm:text-xs text-text-muted uppercase tracking-wider font-medium">Top Artist</span>
+                                        <p className="text-base sm:text-lg font-bold text-amber-500 mt-1 truncate">{summaryStats.mostPromotedArtist}</p>
+                                    </div>
+                                    <div className="bg-surface border border-border-light rounded-xl p-3.5 sm:p-5 col-span-2 lg:col-span-1">
+                                        <span className="text-[10px] sm:text-xs text-text-muted uppercase tracking-wider font-medium">Top Promoter</span>
+                                        <p className="text-base sm:text-lg font-bold text-pink-500 mt-1 truncate">{summaryStats.topPromoterName}</p>
+                                        {summaryStats.topPromoterAmount > 0 && (<p className="text-xs text-text-muted mt-0.5">${summaryStats.topPromoterAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</p>)}
+                                    </div>
+                                </div>
 
-                            {/* ── Engagement Over Time ── */}
-                            {hasAnyEngagement && engagementOverTime.length > 0 && (
+                                {/* ── Engagement Summary Cards ── */}
+                                {hasAnyEngagement && (
+                                    <div>
+                                        <h3 className="text-sm font-semibold text-foreground mb-3">Engagement Overview</h3>
+                                        <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+                                            <div className="bg-surface border border-border-light rounded-xl p-3 sm:p-4 text-center">
+                                                <span className="text-[10px] text-text-muted uppercase tracking-wider font-medium">Impressions</span>
+                                                <p className="text-lg sm:text-xl font-bold text-blue-400 mt-1">{fmtNum(engagementStats.totalImpressions)}</p>
+                                            </div>
+                                            <div className="bg-surface border border-border-light rounded-xl p-3 sm:p-4 text-center">
+                                                <span className="text-[10px] text-text-muted uppercase tracking-wider font-medium">Likes</span>
+                                                <p className="text-lg sm:text-xl font-bold text-red-400 mt-1">{fmtNum(engagementStats.totalLikes)}</p>
+                                            </div>
+                                            <div className="bg-surface border border-border-light rounded-xl p-3 sm:p-4 text-center">
+                                                <span className="text-[10px] text-text-muted uppercase tracking-wider font-medium">Comments</span>
+                                                <p className="text-lg sm:text-xl font-bold text-green-400 mt-1">{fmtNum(engagementStats.totalComments)}</p>
+                                            </div>
+                                            <div className="bg-surface border border-border-light rounded-xl p-3 sm:p-4 text-center">
+                                                <span className="text-[10px] text-text-muted uppercase tracking-wider font-medium">Bookmarks</span>
+                                                <p className="text-lg sm:text-xl font-bold text-amber-400 mt-1">{fmtNum(engagementStats.totalBookmarks)}</p>
+                                            </div>
+                                            <div className="bg-surface border border-border-light rounded-xl p-3 sm:p-4 text-center">
+                                                <span className="text-[10px] text-text-muted uppercase tracking-wider font-medium">Reposts</span>
+                                                <p className="text-lg sm:text-xl font-bold text-purple-400 mt-1">{fmtNum(engagementStats.totalRetweets)}</p>
+                                            </div>
+                                            <div className="bg-surface border border-border-light rounded-xl p-3 sm:p-4 text-center">
+                                                <span className="text-[10px] text-text-muted uppercase tracking-wider font-medium">Eng. Rate</span>
+                                                <p className="text-lg sm:text-xl font-bold text-cyan-400 mt-1">{engagementStats.engagementRate.toFixed(1)}%</p>
+                                                <p className="text-[10px] text-text-muted mt-0.5">{engagementStats.postsWithData} posts</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Revenue Over Time */}
                                 <div className="bg-surface border border-border-light rounded-xl p-4 sm:p-6">
-                                    <h3 className="text-sm font-semibold text-foreground mb-4">Engagement Over Time</h3>
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h3 className="text-sm font-semibold text-foreground">Revenue Over Time</h3>
+                                        <div className="flex gap-1">
+                                            <button onClick={() => setTimeView("daily")} className={`px-2.5 py-1 rounded text-[10px] font-medium transition-all ${timeView === "daily" ? "bg-accent-light text-accent" : "text-text-muted hover:text-text-secondary"}`}>Daily</button>
+                                            <button onClick={() => setTimeView("weekly")} className={`px-2.5 py-1 rounded text-[10px] font-medium transition-all ${timeView === "weekly" ? "bg-accent-light text-accent" : "text-text-muted hover:text-text-secondary"}`}>Weekly</button>
+                                            <button onClick={() => setTimeView("monthly")} className={`px-2.5 py-1 rounded text-[10px] font-medium transition-all ${timeView === "monthly" ? "bg-accent-light text-accent" : "text-text-muted hover:text-text-secondary"}`}>Monthly</button>
+                                        </div>
+                                    </div>
                                     <div className="w-full overflow-x-auto">
                                         <div className="min-w-[500px]">
-                                            <ResponsiveContainer width="100%" height={300}>
-                                                <BarChart data={engagementOverTime}>
+                                            <ResponsiveContainer width="100%" height={280}>
+                                                <LineChart data={revenueOverTime}>
                                                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
                                                     <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
-                                                    <YAxis tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} tickFormatter={(v) => fmtNum(v)} />
-                                                    <Tooltip content={<NumTooltip />} />
-                                                    <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
-                                                    <Bar dataKey="impressions" name="Impressions" fill={ENGAGEMENT_COLORS.impressions} radius={[2, 2, 0, 0]} />
-                                                    <Bar dataKey="likes" name="Likes" fill={ENGAGEMENT_COLORS.likes} radius={[2, 2, 0, 0]} />
-                                                    <Bar dataKey="comments" name="Comments" fill={ENGAGEMENT_COLORS.comments} radius={[2, 2, 0, 0]} />
-                                                    <Bar dataKey="bookmarks" name="Bookmarks" fill={ENGAGEMENT_COLORS.bookmarks} radius={[2, 2, 0, 0]} />
-                                                    <Bar dataKey="retweets" name="Reposts" fill={ENGAGEMENT_COLORS.retweets} radius={[2, 2, 0, 0]} />
+                                                    <YAxis tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v}`} />
+                                                    <Tooltip content={<MoneyTooltip />} />
+                                                    <Line type="monotone" dataKey="revenue" stroke="var(--accent)" strokeWidth={2.5} dot={{ r: 4, fill: "var(--accent)" }} activeDot={{ r: 6, fill: "var(--accent)" }} name="Revenue" />
+                                                </LineChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* ── Engagement Over Time ── */}
+                                {hasAnyEngagement && engagementOverTime.length > 0 && (
+                                    <div className="bg-surface border border-border-light rounded-xl p-4 sm:p-6">
+                                        <h3 className="text-sm font-semibold text-foreground mb-4">Engagement Over Time</h3>
+                                        <div className="w-full overflow-x-auto">
+                                            <div className="min-w-[500px]">
+                                                <ResponsiveContainer width="100%" height={300}>
+                                                    <BarChart data={engagementOverTime}>
+                                                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
+                                                        <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                                                        <YAxis tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} tickFormatter={(v) => fmtNum(v)} />
+                                                        <Tooltip content={<NumTooltip />} />
+                                                        <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
+                                                        <Bar dataKey="impressions" name="Impressions" fill={ENGAGEMENT_COLORS.impressions} radius={[2, 2, 0, 0]} />
+                                                        <Bar dataKey="likes" name="Likes" fill={ENGAGEMENT_COLORS.likes} radius={[2, 2, 0, 0]} />
+                                                        <Bar dataKey="comments" name="Comments" fill={ENGAGEMENT_COLORS.comments} radius={[2, 2, 0, 0]} />
+                                                        <Bar dataKey="bookmarks" name="Bookmarks" fill={ENGAGEMENT_COLORS.bookmarks} radius={[2, 2, 0, 0]} />
+                                                        <Bar dataKey="retweets" name="Reposts" fill={ENGAGEMENT_COLORS.retweets} radius={[2, 2, 0, 0]} />
+                                                    </BarChart>
+                                                </ResponsiveContainer>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Two Column: Revenue by Account + Payment Status */}
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                    <div className="bg-surface border border-border-light rounded-xl p-4 sm:p-6 overflow-hidden">
+                                        <h3 className="text-sm font-semibold text-foreground mb-4">Revenue by Account</h3>
+                                        <div className="w-full -ml-4 sm:ml-0">
+                                            <ResponsiveContainer width="100%" height={260}>
+                                                <BarChart data={revenueByAccount} layout="vertical">
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
+                                                    <XAxis type="number" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v}`} />
+                                                    <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "var(--text-secondary)" }} axisLine={false} tickLine={false} width={100} />
+                                                    <Tooltip content={<MoneyTooltip />} />
+                                                    <Bar dataKey="revenue" name="Revenue" radius={[0, 4, 4, 0]}>
+                                                        {revenueByAccount.map((_, i) => (<Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />))}
+                                                    </Bar>
                                                 </BarChart>
                                             </ResponsiveContainer>
                                         </div>
                                     </div>
-                                </div>
-                            )}
-
-                            {/* Two Column: Revenue by Account + Payment Status */}
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                <div className="bg-surface border border-border-light rounded-xl p-4 sm:p-6 overflow-hidden">
-                                    <h3 className="text-sm font-semibold text-foreground mb-4">Revenue by Account</h3>
-                                    <div className="w-full -ml-4 sm:ml-0">
+                                    <div className="bg-surface border border-border-light rounded-xl p-4 sm:p-6">
+                                        <h3 className="text-sm font-semibold text-foreground mb-4">Payment Status</h3>
                                         <ResponsiveContainer width="100%" height={260}>
-                                            <BarChart data={revenueByAccount} layout="vertical">
-                                                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
-                                                <XAxis type="number" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v}`} />
-                                                <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "var(--text-secondary)" }} axisLine={false} tickLine={false} width={100} />
-                                                <Tooltip content={<MoneyTooltip />} />
-                                                <Bar dataKey="revenue" name="Revenue" radius={[0, 4, 4, 0]}>
-                                                    {revenueByAccount.map((_, i) => (<Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />))}
-                                                </Bar>
-                                            </BarChart>
+                                            <PieChart>
+                                                <Pie data={paymentStatus} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={4} dataKey="value" nameKey="name" strokeWidth={0}>
+                                                    {paymentStatus.map((entry) => (<Cell key={entry.name} fill={STATUS_COLORS[entry.name] || "#666"} />))}
+                                                </Pie>
+                                                <Tooltip content={<SimplePieTooltip />} />
+                                                <Legend iconType="circle" wrapperStyle={{ fontSize: 12, color: "var(--text-secondary)" }} />
+                                            </PieChart>
                                         </ResponsiveContainer>
                                     </div>
                                 </div>
-                                <div className="bg-surface border border-border-light rounded-xl p-4 sm:p-6">
-                                    <h3 className="text-sm font-semibold text-foreground mb-4">Payment Status</h3>
-                                    <ResponsiveContainer width="100%" height={260}>
-                                        <PieChart>
-                                            <Pie data={paymentStatus} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={4} dataKey="value" nameKey="name" strokeWidth={0}>
-                                                {paymentStatus.map((entry) => (<Cell key={entry.name} fill={STATUS_COLORS[entry.name] || "#666"} />))}
-                                            </Pie>
-                                            <Tooltip content={<SimplePieTooltip />} />
-                                            <Legend iconType="circle" wrapperStyle={{ fontSize: 12, color: "var(--text-secondary)" }} />
-                                        </PieChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
 
-                            {/* Two Column: Top Artists + Promo Volume */}
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                <div className="bg-surface border border-border-light rounded-xl p-4 sm:p-6 overflow-hidden">
-                                    <h3 className="text-sm font-semibold text-foreground mb-4">Top Artists by Spend</h3>
-                                    <div className="w-full -ml-4 sm:ml-0">
-                                        <ResponsiveContainer width="100%" height={280}>
-                                            <BarChart data={topArtists} layout="vertical">
-                                                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
-                                                <XAxis type="number" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v}`} />
-                                                <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "var(--text-secondary)" }} axisLine={false} tickLine={false} width={100} />
-                                                <Tooltip content={<MoneyTooltip />} />
-                                                <Bar dataKey="spend" name="Total Spend" radius={[0, 4, 4, 0]} fill="#818cf8" />
-                                            </BarChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                </div>
-                                <div className="bg-surface border border-border-light rounded-xl p-4 sm:p-6 overflow-hidden">
-                                    <h3 className="text-sm font-semibold text-foreground mb-4">Promo Volume</h3>
-                                    <div className="w-full overflow-x-auto">
-                                        <div className="min-w-[400px]">
+                                {/* Two Column: Top Artists + Promo Volume */}
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                    <div className="bg-surface border border-border-light rounded-xl p-4 sm:p-6 overflow-hidden">
+                                        <h3 className="text-sm font-semibold text-foreground mb-4">Top Artists by Spend</h3>
+                                        <div className="w-full -ml-4 sm:ml-0">
                                             <ResponsiveContainer width="100%" height={280}>
-                                                <AreaChart data={promoVolume}>
+                                                <BarChart data={topArtists} layout="vertical">
                                                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
-                                                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
-                                                    <YAxis tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} allowDecimals={false} />
-                                                    <Tooltip content={<SimplePieTooltip />} />
-                                                    <Area type="monotone" dataKey="count" stroke="var(--accent)" fill="var(--accent-light)" strokeWidth={2} name="Promos" />
-                                                </AreaChart>
+                                                    <XAxis type="number" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v}`} />
+                                                    <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "var(--text-secondary)" }} axisLine={false} tickLine={false} width={100} />
+                                                    <Tooltip content={<MoneyTooltip />} />
+                                                    <Bar dataKey="spend" name="Total Spend" radius={[0, 4, 4, 0]} fill="#818cf8" />
+                                                </BarChart>
                                             </ResponsiveContainer>
                                         </div>
                                     </div>
+                                    <div className="bg-surface border border-border-light rounded-xl p-4 sm:p-6 overflow-hidden">
+                                        <h3 className="text-sm font-semibold text-foreground mb-4">Promo Volume</h3>
+                                        <div className="w-full overflow-x-auto">
+                                            <div className="min-w-[400px]">
+                                                <ResponsiveContainer width="100%" height={280}>
+                                                    <AreaChart data={promoVolume}>
+                                                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
+                                                        <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                                                        <YAxis tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} allowDecimals={false} />
+                                                        <Tooltip content={<SimplePieTooltip />} />
+                                                        <Area type="monotone" dataKey="count" stroke="var(--accent)" fill="var(--accent-light)" strokeWidth={2} name="Promos" />
+                                                    </AreaChart>
+                                                </ResponsiveContainer>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
 
-                            {/* ── Engagement by Promoter ── */}
-                            {hasAnyEngagement && engagementByPromoter.length > 0 && (
-                                <div className="bg-surface border border-border-light rounded-xl p-4 sm:p-6">
-                                    <h3 className="text-sm font-semibold text-foreground mb-4">Engagement by Promoter</h3>
-                                    <ResponsiveContainer width="100%" height={Math.max(200, engagementByPromoter.length * 45)}>
-                                        <BarChart data={engagementByPromoter} layout="vertical">
-                                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
-                                            <XAxis type="number" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} tickFormatter={(v) => fmtNum(v)} />
-                                            <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "var(--text-secondary)" }} axisLine={false} tickLine={false} width={120} />
-                                            <Tooltip content={<NumTooltip />} />
-                                            <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
-                                            <Bar dataKey="impressions" name="Impressions" fill={ENGAGEMENT_COLORS.impressions} radius={[0, 2, 2, 0]} stackId="a" />
-                                            <Bar dataKey="likes" name="Likes" fill={ENGAGEMENT_COLORS.likes} radius={[0, 2, 2, 0]} stackId="b" />
-                                            <Bar dataKey="retweets" name="Reposts" fill={ENGAGEMENT_COLORS.retweets} radius={[0, 2, 2, 0]} stackId="c" />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            )}
-
-                            {/* Revenue by Promoter */}
-                            <div className="bg-surface border border-border-light rounded-xl p-4 sm:p-6 overflow-hidden">
-                                <h3 className="text-sm font-semibold text-foreground mb-4">Revenue by Promoter</h3>
-                                {revenueByPromoter.length === 0 ? (
-                                    <p className="text-sm text-text-muted py-8 text-center">No promoter data available.</p>
-                                ) : (
-                                    <div className="w-full -ml-4 sm:ml-0">
-                                        <ResponsiveContainer width="100%" height={Math.max(200, revenueByPromoter.length * 40)}>
-                                            <BarChart data={revenueByPromoter} layout="vertical">
+                                {/* ── Engagement by Promoter ── */}
+                                {hasAnyEngagement && engagementByPromoter.length > 0 && (
+                                    <div className="bg-surface border border-border-light rounded-xl p-4 sm:p-6">
+                                        <h3 className="text-sm font-semibold text-foreground mb-4">Engagement by Promoter</h3>
+                                        <ResponsiveContainer width="100%" height={Math.max(200, engagementByPromoter.length * 45)}>
+                                            <BarChart data={engagementByPromoter} layout="vertical">
                                                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
-                                                <XAxis type="number" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v}`} />
+                                                <XAxis type="number" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} tickFormatter={(v) => fmtNum(v)} />
                                                 <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "var(--text-secondary)" }} axisLine={false} tickLine={false} width={120} />
-                                                <Tooltip content={<MoneyTooltip />} />
-                                                <Bar dataKey="revenue" name="Revenue" radius={[0, 4, 4, 0]}>
-                                                    {revenueByPromoter.map((_, i) => (<Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} fillOpacity={1 - (i * 0.08)} />))}
-                                                </Bar>
+                                                <Tooltip content={<NumTooltip />} />
+                                                <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
+                                                <Bar dataKey="impressions" name="Impressions" fill={ENGAGEMENT_COLORS.impressions} radius={[0, 2, 2, 0]} stackId="a" />
+                                                <Bar dataKey="likes" name="Likes" fill={ENGAGEMENT_COLORS.likes} radius={[0, 2, 2, 0]} stackId="b" />
+                                                <Bar dataKey="retweets" name="Reposts" fill={ENGAGEMENT_COLORS.retweets} radius={[0, 2, 2, 0]} stackId="c" />
                                             </BarChart>
                                         </ResponsiveContainer>
                                     </div>
                                 )}
-                            </div>
 
-                            {/* Promoter Leaderboard */}
-                            <div className="bg-surface border border-border-light rounded-xl p-4 sm:p-6">
-                                <h3 className="text-sm font-semibold text-foreground mb-4">Promoter Leaderboard</h3>
-                                {promoterLeaderboard.length === 0 ? (
-                                    <p className="text-sm text-text-muted py-8 text-center">No promoter data available.</p>
-                                ) : (
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full">
-                                            <thead>
-                                                <tr className="border-b border-border-light">
-                                                    <th className="text-left px-3 py-2.5 text-xs text-text-muted uppercase tracking-wider font-medium">#</th>
-                                                    <th className="text-left px-3 py-2.5 text-xs text-text-muted uppercase tracking-wider font-medium">Promoter</th>
-                                                    <th onClick={() => handleLeaderboardSort("count")} className="text-left px-3 py-2.5 text-xs text-text-muted uppercase tracking-wider font-medium cursor-pointer hover:text-text-secondary transition-colors">Promos <LeaderSortIcon field="count" /></th>
-                                                    <th onClick={() => handleLeaderboardSort("revenue")} className="text-left px-3 py-2.5 text-xs text-text-muted uppercase tracking-wider font-medium cursor-pointer hover:text-text-secondary transition-colors">Revenue <LeaderSortIcon field="revenue" /></th>
-                                                    <th onClick={() => handleLeaderboardSort("avg")} className="text-left px-3 py-2.5 text-xs text-text-muted uppercase tracking-wider font-medium cursor-pointer hover:text-text-secondary transition-colors">Avg Value <LeaderSortIcon field="avg" /></th>
-                                                    <th className="text-left px-3 py-2.5 text-xs text-text-muted uppercase tracking-wider font-medium">Top Method</th>
-                                                    {hasAnyEngagement && <th className="text-left px-3 py-2.5 text-xs text-text-muted uppercase tracking-wider font-medium">Impressions</th>}
-                                                    {hasAnyEngagement && <th className="text-left px-3 py-2.5 text-xs text-text-muted uppercase tracking-wider font-medium">Likes</th>}
-                                                    <th onClick={() => handleLeaderboardSort("pct")} className="text-right px-3 py-2.5 text-xs text-text-muted uppercase tracking-wider font-medium cursor-pointer hover:text-text-secondary transition-colors">% Rev <LeaderSortIcon field="pct" /></th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {promoterLeaderboard.map((row, i) => (
-                                                    <tr key={row.name} className="border-b border-border-light/50 hover:bg-surface-hover transition-colors">
-                                                        <td className="px-3 py-3 text-sm text-text-muted font-medium">{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}`}</td>
-                                                        <td className="px-3 py-3 text-sm text-foreground font-medium">{row.name}</td>
-                                                        <td className="px-3 py-3 text-sm text-text-secondary">{row.count}</td>
-                                                        <td className="px-3 py-3 text-sm text-accent font-medium">${row.revenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
-                                                        <td className="px-3 py-3 text-sm text-text-secondary">${row.avg.toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
-                                                        <td className="px-3 py-3 text-sm text-text-muted">{row.topMethod}</td>
-                                                        {hasAnyEngagement && <td className="px-3 py-3 text-sm text-blue-400">{row.impressions > 0 ? fmtNum(row.impressions) : "—"}</td>}
-                                                        {hasAnyEngagement && <td className="px-3 py-3 text-sm text-red-400">{row.likes > 0 ? fmtNum(row.likes) : "—"}</td>}
-                                                        <td className="px-3 py-3 text-sm text-right">
-                                                            <div className="flex items-center justify-end gap-2">
-                                                                <div className="w-16 h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
-                                                                    <div className="h-full bg-accent rounded-full" style={{ width: `${Math.min(row.pct, 100)}%` }} />
-                                                                </div>
-                                                                <span className="text-text-muted">{row.pct.toFixed(1)}%</span>
-                                                            </div>
-                                                        </td>
+                                {/* Revenue by Promoter */}
+                                <div className="bg-surface border border-border-light rounded-xl p-4 sm:p-6 overflow-hidden">
+                                    <h3 className="text-sm font-semibold text-foreground mb-4">Revenue by Promoter</h3>
+                                    {revenueByPromoter.length === 0 ? (
+                                        <p className="text-sm text-text-muted py-8 text-center">No promoter data available.</p>
+                                    ) : (
+                                        <div className="w-full -ml-4 sm:ml-0">
+                                            <ResponsiveContainer width="100%" height={Math.max(200, revenueByPromoter.length * 40)}>
+                                                <BarChart data={revenueByPromoter} layout="vertical">
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
+                                                    <XAxis type="number" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v}`} />
+                                                    <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "var(--text-secondary)" }} axisLine={false} tickLine={false} width={120} />
+                                                    <Tooltip content={<MoneyTooltip />} />
+                                                    <Bar dataKey="revenue" name="Revenue" radius={[0, 4, 4, 0]}>
+                                                        {revenueByPromoter.map((_, i) => (<Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} fillOpacity={1 - (i * 0.08)} />))}
+                                                    </Bar>
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Promoter Leaderboard */}
+                                <div className="bg-surface border border-border-light rounded-xl p-4 sm:p-6">
+                                    <h3 className="text-sm font-semibold text-foreground mb-4">Promoter Leaderboard</h3>
+                                    {promoterLeaderboard.length === 0 ? (
+                                        <p className="text-sm text-text-muted py-8 text-center">No promoter data available.</p>
+                                    ) : (
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full">
+                                                <thead>
+                                                    <tr className="border-b border-border-light">
+                                                        <th className="text-left px-3 py-2.5 text-xs text-text-muted uppercase tracking-wider font-medium">#</th>
+                                                        <th className="text-left px-3 py-2.5 text-xs text-text-muted uppercase tracking-wider font-medium">Promoter</th>
+                                                        <th onClick={() => handleLeaderboardSort("count")} className="text-left px-3 py-2.5 text-xs text-text-muted uppercase tracking-wider font-medium cursor-pointer hover:text-text-secondary transition-colors">Promos <LeaderSortIcon field="count" /></th>
+                                                        <th onClick={() => handleLeaderboardSort("revenue")} className="text-left px-3 py-2.5 text-xs text-text-muted uppercase tracking-wider font-medium cursor-pointer hover:text-text-secondary transition-colors">Revenue <LeaderSortIcon field="revenue" /></th>
+                                                        <th onClick={() => handleLeaderboardSort("avg")} className="text-left px-3 py-2.5 text-xs text-text-muted uppercase tracking-wider font-medium cursor-pointer hover:text-text-secondary transition-colors">Avg Value <LeaderSortIcon field="avg" /></th>
+                                                        <th className="text-left px-3 py-2.5 text-xs text-text-muted uppercase tracking-wider font-medium">Top Method</th>
+                                                        {hasAnyEngagement && <th className="text-left px-3 py-2.5 text-xs text-text-muted uppercase tracking-wider font-medium">Impressions</th>}
+                                                        {hasAnyEngagement && <th className="text-left px-3 py-2.5 text-xs text-text-muted uppercase tracking-wider font-medium">Likes</th>}
+                                                        <th onClick={() => handleLeaderboardSort("pct")} className="text-right px-3 py-2.5 text-xs text-text-muted uppercase tracking-wider font-medium cursor-pointer hover:text-text-secondary transition-colors">% Rev <LeaderSortIcon field="pct" /></th>
                                                     </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                )}
-                            </div>
-                        </>
-                    )}
+                                                </thead>
+                                                <tbody>
+                                                    {promoterLeaderboard.map((row, i) => (
+                                                        <tr key={row.name} className="border-b border-border-light/50 hover:bg-surface-hover transition-colors">
+                                                            <td className="px-3 py-3 text-sm text-text-muted font-medium">{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}`}</td>
+                                                            <td className="px-3 py-3 text-sm text-foreground font-medium">{row.name}</td>
+                                                            <td className="px-3 py-3 text-sm text-text-secondary">{row.count}</td>
+                                                            <td className="px-3 py-3 text-sm text-accent font-medium">${row.revenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
+                                                            <td className="px-3 py-3 text-sm text-text-secondary">${row.avg.toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
+                                                            <td className="px-3 py-3 text-sm text-text-muted">{row.topMethod}</td>
+                                                            {hasAnyEngagement && <td className="px-3 py-3 text-sm text-blue-400">{row.impressions > 0 ? fmtNum(row.impressions) : "—"}</td>}
+                                                            {hasAnyEngagement && <td className="px-3 py-3 text-sm text-red-400">{row.likes > 0 ? fmtNum(row.likes) : "—"}</td>}
+                                                            <td className="px-3 py-3 text-sm text-right">
+                                                                <div className="flex items-center justify-end gap-2">
+                                                                    <div className="w-16 h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+                                                                        <div className="h-full bg-accent rounded-full" style={{ width: `${Math.min(row.pct, 100)}%` }} />
+                                                                    </div>
+                                                                    <span className="text-text-muted">{row.pct.toFixed(1)}%</span>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+                                </div>
+                            </>
+                        )}
+                    </div>
                 </div>
+
+                <AnalyticsExportModal
+                    isOpen={exportModalOpen}
+                    onClose={() => setExportModalOpen(false)}
+                    onExport={(config) => handleExport(config)}
+                />
             </DashboardLayout>
         </ProtectedRoute>
     );
