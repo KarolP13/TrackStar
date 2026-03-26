@@ -67,7 +67,7 @@ export default function Logo({ size = "sm", className = "" }: LogoProps) {
                     strokeLinejoin="round"
                 />
             </svg>
-            <span className={`${textSize} tracking-tight font-light`}>
+            <span className={`${textSize} tracking-tight font-light text-white`}>
                 <span className="font-light">TRACK</span>
                 <span className="font-bold">STAR</span>
             </span>
