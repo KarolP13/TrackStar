@@ -42,6 +42,9 @@ export function subscribeToPromos(
         })) as Promo[];
         promos.sort((a, b) => (b.promoDate?.toMillis() || 0) - (a.promoDate?.toMillis() || 0));
         callback(promos);
+    }, (error) => {
+        console.error("Error subscribing to promos:", error);
+        callback([]);
     });
 }
 
@@ -220,6 +223,9 @@ export function subscribeToSavedPromoters(
         })) as SavedPromoter[];
         promoters.sort((a, b) => a.name.localeCompare(b.name));
         callback(promoters);
+    }, (error) => {
+        console.error("Error subscribing to saved promoters:", error);
+        callback([]);
     });
 }
 
@@ -253,6 +259,9 @@ export function subscribeToSavedAccounts(
         })) as SavedAccount[];
         accounts.sort((a, b) => a.handle.localeCompare(b.handle));
         callback(accounts);
+    }, (error) => {
+        console.error("Error subscribing to saved accounts:", error);
+        callback([]);
     });
 }
 

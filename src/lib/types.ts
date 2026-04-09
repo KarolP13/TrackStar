@@ -56,6 +56,7 @@ export const PAYMENT_METHODS = [
     "PayPal",
     "Zelle",
     "CashApp",
+    "Apple Pay",
     "Wire",
     "Invoice",
 ] as const;
