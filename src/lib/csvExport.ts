@@ -19,6 +19,7 @@ export function exportPromosToCSV(promos: Promo[]) {
     const headers = [
         "Date",
         "Promoting",
+        "Label",
         "Account",
         "Promoter",
         "Amount ($)",
@@ -41,6 +42,7 @@ export function exportPromosToCSV(promos: Promo[]) {
         return [
             formatDate(p.promoDate),
             p.promoting,
+            p.artistLabel || "",
             p.accountHandle,
             p.promoterName,
             p.paymentAmount.toString(),

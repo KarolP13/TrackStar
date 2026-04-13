@@ -339,6 +339,122 @@ export function exportAnalyticsPDF(promos: Promo[], countBundles: boolean, confi
         });
     }
 
+    // ── Revenue by Promoter ──
+    if (config.includeRevenueByPromoter) {
+        checkPageBreak(50);
+        const promoterRevenue: Record<string, number> = {};
+        promos.forEach((p) => {
+            promoterRevenue[p.promoterName] = (promoterRevenue[p.promoterName] || 0) + p.paymentAmount;
+        });
+        const totalRevForPct = promos.reduce((s, p) => s + p.paymentAmount, 0);
+
+        doc.setFontSize(10);
+        doc.setTextColor(30, 30, 30);
+        doc.text("Revenue by Promoter", 14, y);
+        y += 6;
+
+        if (chartImages.revenuePromoter) {
+            doc.addImage(chartImages.revenuePromoter, "JPEG", 14, y, 180, 70);
+            y += 80;
+        } else {
+            autoTable(doc, {
+                startY: y,
+                head: [["Promoter", "Revenue", "% Total"]],
+                body: Object.entries(promoterRevenue)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 10)
+                    .map(([name, revenue]) => [
+                        name,
+                        `$${revenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
+                        `${(totalRevForPct > 0 ? (revenue / totalRevForPct) * 100 : 0).toFixed(1)}%`,
+                    ]),
+                theme: "grid",
+                headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255], fontSize: 8 },
+                bodyStyles: { fontSize: 8, textColor: [50, 50, 50] },
+                margin: { left: 14, right: 14 },
+                tableWidth: 140,
+                didDrawPage: (data) => { addFooter(doc, data.pageNumber); },
+            });
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            y = (doc as any).lastAutoTable?.finalY + 10 || y + 35;
+        }
+    }
+
+    // ── Revenue by Label ──
+    if (config.includeRevenueByLabel) {
+        const labelRevenue: Record<string, number> = {};
+        promos.forEach((p) => {
+            if (p.artistLabel) {
+                labelRevenue[p.artistLabel] = (labelRevenue[p.artistLabel] || 0) + p.paymentAmount;
+            }
+        });
+
+        if (Object.keys(labelRevenue).length > 0) {
+            checkPageBreak(50);
+            doc.setFontSize(10);
+            doc.setTextColor(30, 30, 30);
+            doc.text("Revenue by Label", 14, y);
+            y += 6;
+
+            if (chartImages.revenueLabel) {
+                doc.addImage(chartImages.revenueLabel, "JPEG", 14, y, 180, 70);
+                y += 80;
+            } else {
+                autoTable(doc, {
+                    startY: y,
+                    head: [["Label", "Revenue", "Promos"]],
+                    body: Object.entries(labelRevenue)
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 10)
+                        .map(([label, revenue]) => [
+                            label,
+                            `$${revenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
+                            promos.filter((p) => p.artistLabel === label).reduce((sum, p) => sum + getCount(p), 0).toString(),
+                        ]),
+                    theme: "grid",
+                    headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255], fontSize: 8 },
+                    bodyStyles: { fontSize: 8, textColor: [50, 50, 50] },
+                    margin: { left: 14, right: 14 },
+                    tableWidth: 140,
+                    didDrawPage: (data) => { addFooter(doc, data.pageNumber); },
+                });
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                y = (doc as any).lastAutoTable?.finalY + 10 || y + 35;
+            }
+        }
+    }
+
+    // ── Engagement Summary ──
+    if (config.includeEngagement) {
+        let totalImpressions = 0, totalLikes = 0, totalComments = 0, totalBookmarks = 0, totalRetweets = 0;
+        promos.forEach((p) => {
+            totalImpressions += p.impressions || 0;
+            totalLikes += p.likes || 0;
+            totalComments += p.comments || 0;
+            totalBookmarks += p.bookmarks || 0;
+            totalRetweets += p.retweets || 0;
+        });
+
+        const totalEngagement = totalLikes + totalComments + totalBookmarks + totalRetweets;
+        if (totalEngagement > 0 || totalImpressions > 0) {
+            checkPageBreak(40);
+            doc.setFontSize(10);
+            doc.setTextColor(30, 30, 30);
+            doc.text("Engagement Summary", 14, y);
+            y += 8;
+
+            doc.setFontSize(8);
+            doc.setTextColor(80, 80, 80);
+            doc.text(`Impressions: ${totalImpressions.toLocaleString()}`, 14, y); y += 5;
+            doc.text(`Likes: ${totalLikes.toLocaleString()}`, 14, y); y += 5;
+            doc.text(`Comments: ${totalComments.toLocaleString()}`, 14, y); y += 5;
+            doc.text(`Bookmarks: ${totalBookmarks.toLocaleString()}`, 14, y); y += 5;
+            doc.text(`Reposts: ${totalRetweets.toLocaleString()}`, 14, y); y += 5;
+            const engRate = totalImpressions > 0 ? ((totalEngagement / totalImpressions) * 100).toFixed(1) : "0.0";
+            doc.text(`Engagement Rate: ${engRate}%`, 14, y); y += 10;
+        }
+    }
+
     const filename = `TrackStar_Analytics_${new Date().toISOString().split("T")[0]}.pdf`;
     doc.save(filename);
 }

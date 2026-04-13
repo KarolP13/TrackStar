@@ -45,6 +45,8 @@ const defaultFormData: PromoFormData = {
     bookmarks: null,
     retweets: null,
     isBundleComplete: false,
+    bundleName: "",
+    artistLabel: "",
 };
 
 export default function PromoModal({
@@ -72,6 +74,11 @@ export default function PromoModal({
     const [showRecurring, setShowRecurring] = useState(false);
     const [saveAsDefault, setSaveAsDefault] = useState(false);
     const [promotingSuggestion, setPromotingSuggestion] = useState("");
+    const [labelSuggestions, setLabelSuggestions] = useState<string[]>([]);
+    const [showLabelSuggestions, setShowLabelSuggestions] = useState(false);
+
+    // Unique labels from existing promos for auto-suggest
+    const existingLabels = Array.from(new Set(allPromos.map(p => p.artistLabel).filter(Boolean) as string[])).sort();
 
     useEffect(() => {
         if (editingPromo) {
@@ -104,6 +111,8 @@ export default function PromoModal({
                 bookmarks: editingPromo.bookmarks ?? null,
                 retweets: editingPromo.retweets ?? null,
                 isBundleComplete: editingPromo.isBundleComplete || false,
+                bundleName: editingPromo.bundleName || "",
+                artistLabel: editingPromo.artistLabel || "",
             });
             setShowRecurring(!isDuplicate && (editingPromo.isRecurring || false));
         } else {
@@ -369,6 +378,58 @@ export default function PromoModal({
                             </div>
                         </div>
 
+                        {/* Artist Label */}
+                        <div>
+                            <label className="block text-xs text-text-muted mb-1.5 uppercase tracking-wider font-medium">
+                                Label <span className="text-text-muted opacity-50">(optional)</span>
+                            </label>
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    value={formData.artistLabel || ""}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        setFormData({ ...formData, artistLabel: val });
+                                        if (val.trim()) {
+                                            const filtered = existingLabels.filter(l => l.toLowerCase().includes(val.toLowerCase()));
+                                            setLabelSuggestions(filtered);
+                                            setShowLabelSuggestions(filtered.length > 0);
+                                        } else {
+                                            setShowLabelSuggestions(false);
+                                        }
+                                    }}
+                                    onFocus={() => {
+                                        if (formData.artistLabel?.trim()) {
+                                            const filtered = existingLabels.filter(l => l.toLowerCase().includes(formData.artistLabel!.toLowerCase()));
+                                            if (filtered.length > 0) setShowLabelSuggestions(true);
+                                        }
+                                    }}
+                                    onBlur={() => setTimeout(() => setShowLabelSuggestions(false), 150)}
+                                    placeholder="e.g. Interscope, Republic, Independent"
+                                    className="w-full bg-surface border border-border-light rounded-lg px-4 py-2.5 text-sm text-foreground placeholder-text-muted focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 transition-all"
+                                    autoComplete="off"
+                                />
+                                {showLabelSuggestions && labelSuggestions.length > 0 && (
+                                    <div className="absolute top-full left-0 right-0 mt-1 bg-surface border border-border-light rounded-lg shadow-xl z-30 py-1 max-h-36 overflow-y-auto animate-fade-in">
+                                        {labelSuggestions.map((label) => (
+                                            <button
+                                                key={label}
+                                                type="button"
+                                                onMouseDown={(e) => e.preventDefault()}
+                                                onClick={() => {
+                                                    setFormData({ ...formData, artistLabel: label });
+                                                    setShowLabelSuggestions(false);
+                                                }}
+                                                className="w-full text-left px-3 py-2 text-sm text-text-secondary hover:bg-surface-hover hover:text-foreground transition-colors"
+                                            >
+                                                {label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
                         {/* Promoter */}
                         <div>
                             <label className="block text-xs text-text-muted mb-1.5 uppercase tracking-wider font-medium">
@@ -525,7 +586,7 @@ export default function PromoModal({
                                     type="button"
                                     onClick={() => {
                                         const next = !formData.isBundle;
-                                        setFormData({ ...formData, isBundle: next, bundleCount: next ? 3 : null, bundleGroupId: null });
+                                        setFormData({ ...formData, isBundle: next, bundleCount: next ? 3 : null, bundleGroupId: null, bundleName: next ? formData.bundleName : "" });
                                     }}
                                     className="flex items-center gap-2 text-sm text-text-muted hover:text-text-secondary transition-colors"
                                 >
@@ -568,6 +629,17 @@ export default function PromoModal({
                                         </div>
                                     </div>
                                 )}
+                                {formData.isBundle && !formData.bundleGroupId && (
+                                    <div className="w-full mt-2 animate-fade-in">
+                                        <input
+                                            type="text"
+                                            value={formData.bundleName || ""}
+                                            onChange={(e) => setFormData({ ...formData, bundleName: e.target.value })}
+                                            placeholder="Bundle name (e.g. March Package Deal)"
+                                            className="w-full bg-surface border border-border-light rounded-lg px-3 py-2 text-sm text-foreground placeholder-text-muted focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 transition-all"
+                                        />
+                                    </div>
+                                )}
                             </div>
 
                             {/* Attach to bundle selector */}
@@ -588,13 +660,15 @@ export default function PromoModal({
                                                     const nextIndex = bundlePromos.length === 0 ? 1 : maxIndex + 1;
                                                     const finalNextIndex = Math.min(nextIndex, bundle?.count || formData.bundleCount || 100);
 
+                                                    const existingBundlePromo = allPromos.find(p => p.bundleGroupId === val && p.bundleName);
                                                     setFormData({
                                                         ...formData,
                                                         bundleGroupId: val,
                                                         bundleCount: bundle?.count || formData.bundleCount,
                                                         bundleIndex: finalNextIndex,
-                                                        promoting: bundle?.promoting || formData.promoting,
+                                                        promoting: formData.promoting || bundle?.promoting || "",
                                                         promoterName: bundle?.promoterName || formData.promoterName,
+                                                        bundleName: existingBundlePromo?.bundleName || formData.bundleName,
                                                     });
                                                 }
                                             }}

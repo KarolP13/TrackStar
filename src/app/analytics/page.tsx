@@ -224,6 +224,26 @@ export default function AnalyticsPage() {
         return { totalRevenue, avgValue, mostActiveAccount, mostPromotedArtist, topPromoterName, topPromoterAmount };
     }, [filteredPromos, countBundles]);
 
+    // ── Revenue by Label ──────────────────────
+    const revenueByLabel = useMemo(() => {
+        const buckets: Record<string, number> = {};
+        filteredPromos.forEach((p) => {
+            const label = p.artistLabel || "Unlabeled";
+            buckets[label] = (buckets[label] || 0) + p.paymentAmount;
+        });
+        return Object.entries(buckets)
+            .map(([name, revenue]) => ({ name, revenue }))
+            .sort((a, b) => b.revenue - a.revenue)
+            .slice(0, 10);
+    }, [filteredPromos]);
+
+    const topLabel = useMemo(() => {
+        const entry = revenueByLabel.find(e => e.name !== "Unlabeled");
+        return entry || null;
+    }, [revenueByLabel]);
+
+    const hasAnyLabels = useMemo(() => filteredPromos.some(p => p.artistLabel), [filteredPromos]);
+
     // ── Engagement Summary ───────────────────────
     const engagementStats = useMemo(() => {
         let totalImpressions = 0, totalLikes = 0, totalComments = 0, totalBookmarks = 0, totalRetweets = 0, postsWithData = 0;
@@ -395,6 +415,14 @@ export default function AnalyticsPage() {
             const img = await captureChart("chart-promo-volume");
             if (img) chartImages.promoVolume = img;
         }
+        if (config.includeRevenueByPromoter) {
+            const img = await captureChart("chart-revenue-promoter");
+            if (img) chartImages.revenuePromoter = img;
+        }
+        if (config.includeRevenueByLabel) {
+            const img = await captureChart("chart-revenue-label");
+            if (img) chartImages.revenueLabel = img;
+        }
 
         const bounds = getDateRangeBounds(config.dateRange);
         const exportPromos = promos.filter((p) => {
@@ -451,6 +479,17 @@ export default function AnalyticsPage() {
                                         <button key={opt.value} onClick={() => setDateRange(opt.value)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${dateRange === opt.value ? "bg-accent-light text-accent border border-accent/30" : "bg-surface text-text-muted border border-border-light hover:text-text-secondary"}`}>{opt.label}</button>
                                     ))}
                                 </div>
+                                <div className="flex flex-wrap gap-2 items-center justify-end">
+                                    <button
+                                        onClick={() => setExportModalOpen(true)}
+                                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border-light bg-surface hover:bg-surface-hover text-text-secondary text-sm font-medium transition-all"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                        </svg>
+                                        Export PDF
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -498,11 +537,18 @@ export default function AnalyticsPage() {
                                         <span className="text-[10px] sm:text-xs text-text-muted uppercase tracking-wider font-medium">Top Artist</span>
                                         <p className="text-base sm:text-lg font-bold text-amber-500 mt-1 truncate">{summaryStats.mostPromotedArtist}</p>
                                     </div>
-                                    <div className="bg-surface border border-border-light rounded-xl p-3.5 sm:p-5 col-span-2 lg:col-span-1">
+                                <div className="bg-surface border border-border-light rounded-xl p-3.5 sm:p-5 col-span-2 lg:col-span-1">
                                         <span className="text-[10px] sm:text-xs text-text-muted uppercase tracking-wider font-medium">Top Promoter</span>
                                         <p className="text-base sm:text-lg font-bold text-pink-500 mt-1 truncate">{summaryStats.topPromoterName}</p>
                                         {summaryStats.topPromoterAmount > 0 && (<p className="text-xs text-text-muted mt-0.5">${summaryStats.topPromoterAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</p>)}
                                     </div>
+                                    {topLabel && (
+                                        <div className="bg-surface border border-border-light rounded-xl p-3.5 sm:p-5">
+                                            <span className="text-[10px] sm:text-xs text-text-muted uppercase tracking-wider font-medium">Top Label</span>
+                                            <p className="text-base sm:text-lg font-bold text-teal-500 mt-1 truncate">{topLabel.name}</p>
+                                            <p className="text-xs text-text-muted mt-0.5">${topLabel.revenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}</p>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* ── Engagement Summary Cards ── */}
@@ -540,7 +586,7 @@ export default function AnalyticsPage() {
                                 )}
 
                                 {/* Revenue Over Time */}
-                                <div className="bg-surface border border-border-light rounded-xl p-4 sm:p-6">
+                                <div id="chart-revenue-time" className="bg-surface border border-border-light rounded-xl p-4 sm:p-6">
                                     <div className="flex items-center justify-between mb-4">
                                         <h3 className="text-sm font-semibold text-foreground">Revenue Over Time</h3>
                                         <div className="flex gap-1">
@@ -637,7 +683,7 @@ export default function AnalyticsPage() {
                                             </ResponsiveContainer>
                                         </div>
                                     </div>
-                                    <div className="bg-surface border border-border-light rounded-xl p-4 sm:p-6 overflow-hidden">
+                                    <div id="chart-promo-volume" className="bg-surface border border-border-light rounded-xl p-4 sm:p-6 overflow-hidden">
                                         <h3 className="text-sm font-semibold text-foreground mb-4">Promo Volume</h3>
                                         <div className="w-full overflow-x-auto">
                                             <div className="min-w-[400px]">
@@ -675,7 +721,7 @@ export default function AnalyticsPage() {
                                 )}
 
                                 {/* Revenue by Promoter */}
-                                <div className="bg-surface border border-border-light rounded-xl p-4 sm:p-6 overflow-hidden">
+                                <div id="chart-revenue-promoter" className="bg-surface border border-border-light rounded-xl p-4 sm:p-6 overflow-hidden">
                                     <h3 className="text-sm font-semibold text-foreground mb-4">Revenue by Promoter</h3>
                                     {revenueByPromoter.length === 0 ? (
                                         <p className="text-sm text-text-muted py-8 text-center">No promoter data available.</p>
@@ -695,6 +741,30 @@ export default function AnalyticsPage() {
                                         </div>
                                     )}
                                 </div>
+
+                                {/* Revenue by Label */}
+                                {hasAnyLabels && (
+                                    <div id="chart-revenue-label" className="bg-surface border border-border-light rounded-xl p-4 sm:p-6 overflow-hidden">
+                                        <h3 className="text-sm font-semibold text-foreground mb-4">Revenue by Label</h3>
+                                        {revenueByLabel.length === 0 ? (
+                                            <p className="text-sm text-text-muted py-8 text-center">No label data available.</p>
+                                        ) : (
+                                            <div className="w-full -ml-4 sm:ml-0">
+                                                <ResponsiveContainer width="100%" height={Math.max(200, revenueByLabel.length * 40)}>
+                                                    <BarChart data={revenueByLabel} layout="vertical">
+                                                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
+                                                        <XAxis type="number" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v}`} />
+                                                        <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "var(--text-secondary)" }} axisLine={false} tickLine={false} width={120} />
+                                                        <Tooltip content={<MoneyTooltip />} />
+                                                        <Bar dataKey="revenue" name="Revenue" radius={[0, 4, 4, 0]}>
+                                                            {revenueByLabel.map((_, i) => (<Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} fillOpacity={1 - (i * 0.06)} />))}
+                                                        </Bar>
+                                                    </BarChart>
+                                                </ResponsiveContainer>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
 
                                 {/* Promoter Leaderboard */}
                                 <div className="bg-surface border border-border-light rounded-xl p-4 sm:p-6">

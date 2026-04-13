@@ -12,6 +12,9 @@ export interface ExportConfig {
     includeTopArtists: boolean;
     includePaymentStatus: boolean;
     includeLeaderboard: boolean;
+    includeRevenueByPromoter: boolean;
+    includeRevenueByLabel: boolean;
+    includeEngagement: boolean;
 }
 
 interface AnalyticsExportModalProps {
@@ -39,6 +42,9 @@ export default function AnalyticsExportModal({ isOpen, onClose, onExport }: Anal
         includeTopArtists: true,
         includePaymentStatus: true,
         includeLeaderboard: true,
+        includeRevenueByPromoter: true,
+        includeRevenueByLabel: true,
+        includeEngagement: true,
     });
     const [exporting, setExporting] = useState(false);
 
@@ -102,6 +108,9 @@ export default function AnalyticsExportModal({ isOpen, onClose, onExport }: Anal
                                     { key: "includeTopArtists", label: "Top Artists by Spend" },
                                     { key: "includePaymentStatus", label: "Payment Status Distribution" },
                                     { key: "includeLeaderboard", label: "Promoter Leaderboard" },
+                                    { key: "includeRevenueByPromoter", label: "Revenue by Promoter (Graph)" },
+                                    { key: "includeRevenueByLabel", label: "Revenue by Label" },
+                                    { key: "includeEngagement", label: "Engagement Data" },
                                 ].map((item) => (
                                     <label key={item.key} className="flex items-center gap-2.5 cursor-pointer group col-span-1">
                                         <div className="relative flex items-center justify-center">

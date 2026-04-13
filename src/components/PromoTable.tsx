@@ -67,6 +67,7 @@ export default function PromoTable({ promos, onEdit,
     const [filterArtist, setFilterArtist] = useState<string>("All");
     const [filterBundleGroupId, setFilterBundleGroupId] = useState<string | null>(null);
     const [filterPaymentMethod, setFilterPaymentMethod] = useState<string>("All");
+    const [filterLabel, setFilterLabel] = useState<string>("All");
     const [filterDateFrom, setFilterDateFrom] = useState("");
     const [filterDateTo, setFilterDateTo] = useState("");
     const [sortField, setSortField] = useState<SortField>("promoDate");
@@ -88,8 +89,9 @@ export default function PromoTable({ promos, onEdit,
     const uniqueAccounts = useMemo(() => [...new Set(promos.map((p) => p.accountHandle))].sort(), [promos]);
     const uniquePromoters = useMemo(() => [...new Set(promos.map((p) => p.promoterName).filter(Boolean))].sort(), [promos]);
     const uniqueArtists = useMemo(() => [...new Set(promos.map((p) => p.promoting).filter(Boolean))].sort(), [promos]);
+    const uniqueLabels = useMemo(() => [...new Set(promos.map((p) => p.artistLabel).filter(Boolean) as string[])].sort(), [promos]);
 
-    const hasActiveFilters = filterStatus !== "All" || filterAccount !== "All" || filterRecurring !== "all" || filterIsBundle !== "all" || filterPromoter !== "All" || filterArtist !== "All" || filterPaymentMethod !== "All" || filterDateFrom || filterDateTo || filterBundleGroupId;
+    const hasActiveFilters = filterStatus !== "All" || filterAccount !== "All" || filterRecurring !== "all" || filterIsBundle !== "all" || filterPromoter !== "All" || filterArtist !== "All" || filterPaymentMethod !== "All" || filterLabel !== "All" || filterDateFrom || filterDateTo || filterBundleGroupId;
 
     const clearAllFilters = () => {
         setFilterStatus("All");
@@ -99,6 +101,7 @@ export default function PromoTable({ promos, onEdit,
         setFilterPromoter("All");
         setFilterArtist("All");
         setFilterPaymentMethod("All");
+        setFilterLabel("All");
         setFilterDateFrom("");
         setFilterDateTo("");
         setFilterBundleGroupId(null);
@@ -122,6 +125,7 @@ export default function PromoTable({ promos, onEdit,
         if (filterPromoter !== "All") result = result.filter((p) => p.promoterName === filterPromoter);
         if (filterArtist !== "All") result = result.filter((p) => p.promoting === filterArtist);
         if (filterPaymentMethod !== "All") result = result.filter((p) => p.paymentMethod === filterPaymentMethod);
+        if (filterLabel !== "All") result = result.filter((p) => p.artistLabel === filterLabel);
 
         if (filterRecurring === "recurring") {
             result = result.filter((p) => p.isRecurring);
@@ -169,7 +173,7 @@ export default function PromoTable({ promos, onEdit,
         });
 
         return result;
-    }, [promos, search, filterStatus, filterAccount, filterPromoter, filterArtist, filterPaymentMethod, filterRecurring, filterIsBundle, filterDateFrom, filterDateTo, filterBundleGroupId, sortField, sortDir]);
+    }, [promos, search, filterStatus, filterAccount, filterPromoter, filterArtist, filterPaymentMethod, filterLabel, filterRecurring, filterIsBundle, filterDateFrom, filterDateTo, filterBundleGroupId, sortField, sortDir]);
 
     const handleSort = (field: SortField) => {
         if (sortField === field) {
@@ -299,7 +303,7 @@ export default function PromoTable({ promos, onEdit,
             {/* Expandable Filters */}
             {showFilters && (
                 <div className="p-4 bg-white/[0.02] border border-white/[0.06] rounded-lg animate-fade-in space-y-3">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
                         <div>
                             <label className="block text-xs text-white/40 mb-1.5 uppercase tracking-wider">Status</label>
                             <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className={selectCls}>
@@ -336,6 +340,13 @@ export default function PromoTable({ promos, onEdit,
                                 <option value="all">All Posts</option>
                                 <option value="bundle">Bundle Posts Only</option>
                                 <option value="non-bundle">Non-Bundle Posts Only</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs text-white/40 mb-1.5 uppercase tracking-wider">Label</label>
+                            <select value={filterLabel} onChange={(e) => setFilterLabel(e.target.value)} className={selectCls}>
+                                <option value="All">All Labels</option>
+                                {uniqueLabels.map((l) => (<option key={l} value={l}>{l}</option>))}
                             </select>
                         </div>
                     </div>
@@ -412,6 +423,7 @@ export default function PromoTable({ promos, onEdit,
                             {selectMode && <th className="w-10 px-3 py-3"></th>}
                             <th onClick={() => handleSort("promoDate")} className="text-left px-4 py-3 text-xs text-text-muted uppercase tracking-wider font-medium cursor-pointer hover:text-text-secondary transition-colors">Date <SortIcon field="promoDate" /></th>
                             <th onClick={() => handleSort("promoting")} className="text-left px-4 py-3 text-xs text-text-muted uppercase tracking-wider font-medium cursor-pointer hover:text-text-secondary transition-colors">Promoting <SortIcon field="promoting" /></th>
+                            <th className="text-left px-4 py-3 text-xs text-text-muted uppercase tracking-wider font-medium">Label</th>
                             <th className="text-left px-4 py-3 text-xs text-text-muted uppercase tracking-wider font-medium">Account</th>
                             <th className="text-left px-4 py-3 text-xs text-text-muted uppercase tracking-wider font-medium">Promoter</th>
                             <th onClick={() => handleSort("paymentAmount")} className="text-left px-4 py-3 text-xs text-text-muted uppercase tracking-wider font-medium cursor-pointer hover:text-text-secondary transition-colors">Amount <SortIcon field="paymentAmount" /></th>
@@ -423,7 +435,7 @@ export default function PromoTable({ promos, onEdit,
                     <tbody>
                         {filteredAndSorted.length === 0 ? (
                             <tr>
-                                <td colSpan={selectMode ? 9 : 8} className="text-center py-12 text-white/30 text-sm">
+                                <td colSpan={selectMode ? 10 : 9} className="text-center py-12 text-white/30 text-sm">
                                     {promos.length === 0 ? 'No promos yet. Click "Add Promo" to get started.' : "No promos match your filters."}
                                 </td>
                             </tr>
@@ -442,6 +454,11 @@ export default function PromoTable({ promos, onEdit,
                                     <td className="px-4 py-3.5 text-sm text-foreground font-medium">
                                         <div className="flex items-center gap-2">
                                             {promo.promoting}
+                                            {promo.bundleName && (
+                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-white/5 text-text-muted border border-white/[0.08] truncate max-w-[120px]" title={promo.bundleName}>
+                                                    {promo.bundleName}
+                                                </span>
+                                            )}
                                             {promo.isBundle && promo.bundleCount && (
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); setShowFilters(true); setFilterBundleGroupId(promo.bundleGroupId || null); }}
@@ -453,6 +470,7 @@ export default function PromoTable({ promos, onEdit,
                                             )}
                                         </div>
                                     </td>
+                                    <td className="px-4 py-3.5 text-sm text-text-muted">{promo.artistLabel || "—"}</td>
                                     <td className="px-4 py-3.5 text-sm text-accent font-mono">{promo.accountHandle}</td>
                                     <td className="px-4 py-3.5 text-sm text-text-muted">{promo.promoterName}</td>
                                     <td className="px-4 py-3.5 text-sm text-foreground font-medium">${promo.paymentAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
@@ -530,6 +548,11 @@ export default function PromoTable({ promos, onEdit,
                                                 {promo.promoting}
                                                 {promo.isRecurring && <RecurringIcon />}
                                             </p>
+                                            {promo.bundleName && (
+                                                <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-white/5 text-text-muted border border-white/[0.08] truncate max-w-[100px]" title={promo.bundleName}>
+                                                    {promo.bundleName}
+                                                </span>
+                                            )}
                                             {promo.isBundle && promo.bundleCount && (
                                                 <span className="shrink-0 inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
                                                     {promo.bundleIndex ? `${promo.bundleIndex}/${promo.bundleCount}` : `${promo.bundleCount}x`}
@@ -537,6 +560,9 @@ export default function PromoTable({ promos, onEdit,
                                             )}
                                         </div>
                                         <p className="text-accent text-sm font-mono truncate">{promo.accountHandle}</p>
+                                        {promo.artistLabel && (
+                                            <p className="text-text-muted text-xs mt-0.5 truncate">🏷 {promo.artistLabel}</p>
+                                        )}
                                     </div>
                                 </div>
                                 <span className={`shrink-0 inline-flex px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-medium border ${getStatusColor(promo.paymentStatus)}`}>{promo.paymentStatus}</span>
