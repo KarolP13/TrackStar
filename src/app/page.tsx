@@ -245,6 +245,14 @@ export default function DashboardPage() {
             promoterPresets={profile?.promoterPresets || {}}
             onSavePreset={handleSavePreset}
             allPromos={promos}
+            pinnedPromoters={profile?.pinnedPromoters || []}
+            onTogglePin={(name) => {
+              const current = profile?.pinnedPromoters || [];
+              const updated = current.includes(name)
+                ? current.filter(n => n !== name)
+                : [...current, name];
+              updateProfile({ pinnedPromoters: updated });
+            }}
           />
 
           {/* Import Modal */}

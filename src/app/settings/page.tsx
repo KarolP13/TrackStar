@@ -33,6 +33,7 @@ export default function SettingsPage() {
     const [paymentMethod, setPaymentMethod] = useState("");
     const [accountHandle, setAccountHandle] = useState("");
     const [promoterName, setPromoterName] = useState("");
+    const [defaultPaymentStatus, setDefaultPaymentStatus] = useState("Pending");
 
     const [isSaving, setIsSaving] = useState(false);
     const [saveMessage, setSaveMessage] = useState("");
@@ -50,6 +51,7 @@ export default function SettingsPage() {
         setPaymentMethod(profile.defaults?.paymentMethod || "");
         setAccountHandle(profile.defaults?.accountHandle || "");
         setPromoterName(profile.defaults?.promoterName || "");
+        setDefaultPaymentStatus(profile.defaults?.paymentStatus || "Pending");
     }, [profile]);
 
     // Derive unique promoter names from past promos
@@ -85,6 +87,7 @@ export default function SettingsPage() {
                 accentColor,
                 defaults: {
                     paymentMethod,
+                    paymentStatus: defaultPaymentStatus,
                     accountHandle,
                     promoterName,
                 },
@@ -242,6 +245,19 @@ export default function SettingsPage() {
                                         {PAYMENT_METHODS.map((m) => (
                                             <option key={m} value={m}>{m}</option>
                                         ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs text-text-muted mb-1.5 uppercase tracking-wider font-medium">
+                                        Default Payment Status
+                                    </label>
+                                    <select
+                                        value={defaultPaymentStatus}
+                                        onChange={(e) => setDefaultPaymentStatus(e.target.value)}
+                                        className="w-full bg-surface-hover border border-border-light rounded-lg px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-accent/50 appearance-none cursor-pointer transition-all"
+                                    >
+                                        <option value="Pending">Pending</option>
+                                        <option value="Paid">Paid</option>
                                     </select>
                                 </div>
                                 <div>

@@ -12,6 +12,7 @@ const DEFAULT_PROFILE: UserProfile = {
     displayName: "",
     defaults: {
         paymentMethod: "",
+        paymentStatus: "Pending",
         accountHandle: "",
         promoterName: "",
     },

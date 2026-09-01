@@ -17,6 +17,8 @@ interface PromoModalProps {
     promoterPresets?: Record<string, PromoterPreset>;
     onSavePreset?: (promoterName: string, preset: PromoterPreset) => void;
     allPromos?: Promo[];
+    pinnedPromoters?: string[];
+    onTogglePin?: (promoterName: string) => void;
     pastPromotingNames?: string[];
 }
 
@@ -28,7 +30,7 @@ const defaultFormData: PromoFormData = {
     tweetLink: "",
     paymentMethod: "PayPal",
     paymentAmount: 0,
-    paymentStatus: "Paid",
+    paymentStatus: "Pending",
     notes: "",
     isRecurring: false,
     recurringFrequency: null,
@@ -63,6 +65,8 @@ export default function PromoModal({
     promoterPresets = {},
     onSavePreset,
     allPromos = [],
+    pinnedPromoters = [],
+    onTogglePin,
 }: PromoModalProps) {
     const [formData, setFormData] = useState<PromoFormData>({ ...defaultFormData });
     const [loading, setLoading] = useState(false);
@@ -94,7 +98,7 @@ export default function PromoModal({
                 tweetLink: isDuplicate ? "" : (editingPromo.tweetLink || ""),
                 paymentMethod: editingPromo.paymentMethod,
                 paymentAmount: editingPromo.paymentAmount,
-                paymentStatus: isDuplicate ? "Paid" : editingPromo.paymentStatus,
+                paymentStatus: isDuplicate ? "Pending" : editingPromo.paymentStatus,
                 notes: editingPromo.notes || "",
                 isRecurring: isDuplicate ? false : (editingPromo.isRecurring || false),
                 recurringFrequency: isDuplicate ? null : (editingPromo.recurringFrequency || null),
@@ -119,6 +123,7 @@ export default function PromoModal({
             setFormData({
                 ...defaultFormData,
                 paymentMethod: promoDefaults?.paymentMethod || defaultFormData.paymentMethod,
+                paymentStatus: (promoDefaults?.paymentStatus as "Pending" | "Paid" | "Overdue") || defaultFormData.paymentStatus,
                 accountHandle: promoDefaults?.accountHandle || defaultFormData.accountHandle,
                 promoterName: promoDefaults?.promoterName || defaultFormData.promoterName,
             });
@@ -444,7 +449,21 @@ export default function PromoModal({
                                             className="flex-1 bg-surface border border-border-light rounded-lg px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-accent/50 appearance-none cursor-pointer transition-all"
                                         >
                                             <option value="">Select a promoter...</option>
-                                            {savedPromoters.map((p) => (
+                                            {pinnedPromoters.length > 0 && savedPromoters.some(p => pinnedPromoters.includes(p.name)) && (
+                                                <optgroup label="⭐ Pinned">
+                                                    {savedPromoters.filter(p => pinnedPromoters.includes(p.name)).map((p) => (
+                                                        <option key={p.id} value={p.name}>{p.name}</option>
+                                                    ))}
+                                                </optgroup>
+                                            )}
+                                            {pinnedPromoters.length > 0 && savedPromoters.some(p => !pinnedPromoters.includes(p.name)) && (
+                                                <optgroup label="Others">
+                                                    {savedPromoters.filter(p => !pinnedPromoters.includes(p.name)).map((p) => (
+                                                        <option key={p.id} value={p.name}>{p.name}</option>
+                                                    ))}
+                                                </optgroup>
+                                            )}
+                                            {pinnedPromoters.length === 0 && savedPromoters.map((p) => (
                                                 <option key={p.id} value={p.name}>{p.name}</option>
                                             ))}
                                         </select>
@@ -453,12 +472,16 @@ export default function PromoModal({
                                         </button>
                                     </div>
                                     <div className="flex flex-wrap gap-1.5">
-                                        {savedPromoters.map((p) => (
-                                            <span key={p.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-surface border border-border-light text-xs text-text-muted">
-                                                {p.name}
-                                                <button type="button" onClick={() => handleDeletePromoter(p)} className="text-text-muted opacity-50 hover:text-red-400 transition-colors">×</button>
-                                            </span>
-                                        ))}
+                                        {savedPromoters.map((p) => {
+                                            const isPinned = pinnedPromoters.includes(p.name);
+                                            return (
+                                                <span key={p.id} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-xs ${isPinned ? "bg-accent/10 border-accent/30 text-accent" : "bg-surface border-border-light text-text-muted"}`}>
+                                                    <button type="button" onClick={() => onTogglePin?.(p.name)} className={`transition-colors ${isPinned ? "text-accent" : "text-text-muted opacity-40 hover:text-accent hover:opacity-100"}`} title={isPinned ? "Unpin promoter" : "Pin promoter"}>⭐</button>
+                                                    {p.name}
+                                                    <button type="button" onClick={() => handleDeletePromoter(p)} className="text-text-muted opacity-50 hover:text-red-400 transition-colors">×</button>
+                                                </span>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             ) : (

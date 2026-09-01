@@ -75,6 +75,7 @@ export const RECURRING_FREQUENCIES = [
 
 export interface PromoDefaults {
     paymentMethod: string;
+    paymentStatus: string;
     accountHandle: string;
     promoterName: string;
 }
@@ -90,7 +91,8 @@ export interface UserProfile {
     displayName: string;
     defaults: PromoDefaults;
     promoterPresets?: Record<string, PromoterPreset>;
+    pinnedPromoters?: string[];
 }
 
-export type DateRange = "7d" | "30d" | "90d" | "all" | "this_month" | "last_month";
+export type DateRange = "7d" | "30d" | "90d" | "all" | "this_month" | "last_month" | "custom_month" | "custom_year";
 export type TimeView = "daily" | "weekly" | "monthly";

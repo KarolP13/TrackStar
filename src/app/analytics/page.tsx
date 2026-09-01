@@ -36,7 +36,7 @@ const STATUS_COLORS: Record<string, string> = {
     Overdue: "#ef4444",
 };
 
-function getDateRangeBounds(range: DateRange): { start: Date | null; end: Date | null } {
+function getDateRangeBounds(range: DateRange, customMonth?: string, customYear?: string): { start: Date | null; end: Date | null } {
     if (range === "all") return { start: null, end: null };
     const now = new Date();
     if (range === "this_month") {
@@ -47,6 +47,18 @@ function getDateRangeBounds(range: DateRange): { start: Date | null; end: Date |
     if (range === "last_month") {
         const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
         const end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+        return { start, end };
+    }
+    if (range === "custom_month" && customMonth) {
+        const [y, m] = customMonth.split("-").map(Number);
+        const start = new Date(y, m - 1, 1);
+        const end = new Date(y, m, 0, 23, 59, 59, 999);
+        return { start, end };
+    }
+    if (range === "custom_year" && customYear) {
+        const y = parseInt(customYear);
+        const start = new Date(y, 0, 1);
+        const end = new Date(y, 11, 31, 23, 59, 59, 999);
         return { start, end };
     }
     const days = range === "7d" ? 7 : range === "30d" ? 30 : 90;
@@ -147,6 +159,11 @@ export default function AnalyticsPage() {
     // Filters
     const [filterPromoter, setFilterPromoter] = useState("All");
     const [filterAccount, setFilterAccount] = useState("All");
+    const [customMonth, setCustomMonth] = useState(() => {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    });
+    const [customYear, setCustomYear] = useState(() => String(new Date().getFullYear()));
 
     useEffect(() => {
         if (!user) return;
@@ -163,7 +180,7 @@ export default function AnalyticsPage() {
 
     // Filter promos by date range + dropdown filters
     const filteredPromos = useMemo(() => {
-        const bounds = getDateRangeBounds(dateRange);
+        const bounds = getDateRangeBounds(dateRange, customMonth, customYear);
         return promos.filter((p) => {
             const date = p.promoDate?.toDate();
             if (date) {
@@ -174,7 +191,7 @@ export default function AnalyticsPage() {
             if (filterAccount !== "All" && p.accountHandle !== filterAccount) return false;
             return true;
         });
-    }, [promos, dateRange, filterPromoter, filterAccount]);
+    }, [promos, dateRange, filterPromoter, filterAccount, customMonth, customYear]);
 
     const hasAnyEngagement = useMemo(() =>
         filteredPromos.some((p) => p.impressions || p.likes || p.comments || p.bookmarks || p.retweets),
@@ -186,7 +203,7 @@ export default function AnalyticsPage() {
     const getCount = (p: Promo) => countBundles && p.isBundle && p.bundleCount ? p.bundleCount : 1;
 
     const chartTimeKeys = useMemo(() => {
-        const bounds = getDateRangeBounds(dateRange);
+        const bounds = getDateRangeBounds(dateRange, customMonth, customYear);
         let start = bounds.start, end = bounds.end;
         if (!start || !end) {
             if (filteredPromos.length > 0) {
@@ -197,7 +214,7 @@ export default function AnalyticsPage() {
             }
         }
         return generateTimeKeys(start, end, timeView);
-    }, [dateRange, filteredPromos, timeView]);
+    }, [dateRange, filteredPromos, timeView, customMonth, customYear]);
 
     // ── Summary Stats ──────────────────────────
     const summaryStats = useMemo(() => {
@@ -424,7 +441,7 @@ export default function AnalyticsPage() {
             if (img) chartImages.revenueLabel = img;
         }
 
-        const bounds = getDateRangeBounds(config.dateRange);
+        const bounds = getDateRangeBounds(config.dateRange, customMonth, customYear);
         const exportPromos = promos.filter((p) => {
             if (filterPromoter !== "All" && p.promoterName !== filterPromoter) return false;
             if (filterAccount !== "All" && p.accountHandle !== filterAccount) return false;
@@ -478,6 +495,23 @@ export default function AnalyticsPage() {
                                     {dateRangeOptions.map((opt) => (
                                         <button key={opt.value} onClick={() => setDateRange(opt.value)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${dateRange === opt.value ? "bg-accent-light text-accent border border-accent/30" : "bg-surface text-text-muted border border-border-light hover:text-text-secondary"}`}>{opt.label}</button>
                                     ))}
+                                </div>
+                                <div className="flex flex-wrap gap-2 items-center justify-end">
+                                    <input
+                                        type="month"
+                                        value={customMonth}
+                                        onChange={(e) => { setCustomMonth(e.target.value); setDateRange("custom_month"); }}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${dateRange === "custom_month" ? "bg-accent-light text-accent border-accent/30" : "bg-surface text-text-muted border-border-light hover:text-text-secondary"} appearance-none cursor-pointer`}
+                                    />
+                                    <select
+                                        value={customYear}
+                                        onChange={(e) => { setCustomYear(e.target.value); setDateRange("custom_year"); }}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${dateRange === "custom_year" ? "bg-accent-light text-accent border-accent/30" : "bg-surface text-text-muted border-border-light hover:text-text-secondary"} appearance-none cursor-pointer`}
+                                    >
+                                        {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(y => (
+                                            <option key={y} value={String(y)}>{y}</option>
+                                        ))}
+                                    </select>
                                 </div>
                                 <div className="flex flex-wrap gap-2 items-center justify-end">
                                     <button
